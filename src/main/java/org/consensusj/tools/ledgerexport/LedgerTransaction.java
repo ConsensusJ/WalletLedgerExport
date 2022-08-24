@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 // TODO: Handle Omni Create Token and Omni MetaDex transactions (calculate other fees and funds locked in multisig)
 // TODO: Figure out why BTC balance is off (low) for Sean's wallet (given other TODOs I'd expect the BTC balance to be too high)
 // TODO: Get total fees of Simple Send  (calculate other fees and funds locked in multisig)
-// TODO: Get total fees of testnet transactions
+// TODO: Get total fees of Omni TEST ecosystem transactions
 
 /**
  * Representation of a Bitcoin/Omni Transaction for a plain-text accounting app like ledger-cli.
