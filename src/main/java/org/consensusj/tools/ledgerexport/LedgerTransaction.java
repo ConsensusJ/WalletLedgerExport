@@ -60,7 +60,7 @@ record LedgerTransaction(Sha256Hash txId,
                 .stream()
                 .map(c -> String.format("; %s", c))
                 .collect(Collectors.joining("\n", "\n", "\n"));
-        var mainLine = String.format("%1$tY-%1$tm-%1$td %2$s\n", time, description);
+        var mainLine = String.format("%1$tY-%1$tm-%1$td %1HH:%1MM:%1SS %2$s\n", time, description);
         var splitLines = splits.stream()
                         .map(Split::toLedger)
                         .collect(Collectors.joining("\n", "", "\n"));
@@ -81,27 +81,38 @@ record LedgerTransaction(Sha256Hash txId,
 
     public static LedgerTransaction fromConsolidated(ConsolidatedTransaction cons) {
         boolean isOmni = cons.omniTx() != null;
+        if (cons.txId().toString().equals("91c44eaa107acb8aac4bb283aba91a6fed6bcff91f0b41e5202f3df026dca68e"))  {
+            log.warn("txid is {}", cons.txId());
+        }
         if (isOmni) {
             if (cons.outputs().size() == 1) {
                 if (cons.outputs().get(0).getCategory().equals("send")) {
                     log.warn("Unexpected: Our wallet sent an Omni tx with only one BitcoinTransactionInfo {}", cons.txId());
                 }
-                return fromReceivedOmni(cons.outputs().get(0), cons.omniTx());
+                return fromReceivedOmni(cons);
             } else {
                 log.warn("Omni Tx {}", cons.txId());
                 return fromSentOmni(cons);
             }
         } else {
             if (cons.outputs().size() == 1) {
-                return fromBitcoin(cons.outputs().get(0));
+                return fromBitcoin(cons);
             } else {
                 // Bitcoin Tx with multiple outputs -- i.e. not just dest and change -- generally a "Payment to yourself"
-                return fromBitcoinSelfSend(cons.outputs());
+                return fromBitcoinSelfSend(cons);
             }
         }
     }
     
-    public static LedgerTransaction fromReceivedOmni(BitcoinTransactionInfo bitcoin, OmniTransactionInfo omni) {
+    public static LedgerTransaction fromReceivedOmni(ConsolidatedTransaction ct) {
+        if (ct.outputs().size() != 1) {
+            throw new IllegalStateException("expected single Bitcoin transaction");
+        }
+        if (ct.omniTx() == null) {
+            throw new IllegalStateException("Expected Omni transaction");
+        }
+        BitcoinTransactionInfo bitcoin = ct.outputs().get(0);
+        OmniTransactionInfo omni = ct.omniTx();
         boolean isSend = bitcoin.getCategory().equals("send");
         boolean isOmni = (omni != null);
         String account = isSend ? "Expense:Misc" : "Income:Misc";
@@ -226,7 +237,14 @@ record LedgerTransaction(Sha256Hash txId,
                 splits);
     }
 
-    public static LedgerTransaction fromBitcoin(BitcoinTransactionInfo bitcoin) {
+    public static LedgerTransaction fromBitcoin(ConsolidatedTransaction ct) {
+        if (ct.outputs().size() != 1) {
+            throw new IllegalStateException("expected single Bitcoin transaction");
+        }
+        if (ct.omniTx() != null) {
+            throw new IllegalStateException("Unexpected Omni transaction");
+        }
+        BitcoinTransactionInfo bitcoin = ct.outputs().get(0);
         boolean isSend = bitcoin.getCategory().equals("send");
         String account = isSend ? "Expense:Misc" : "Income:Misc";
         LocalDateTime time = timeFromEpoch(bitcoin.getTime());
@@ -252,10 +270,16 @@ record LedgerTransaction(Sha256Hash txId,
                 splits.add(new Split("Expense:TransactionFees",fee.negate(), OmniCurrencyCode.BTC.toString()));
             }
         }
-        
+
+        List<Address> addresses = ct.addresses();
+        List<String> addressStrings = (addresses != null)
+                                            ? addresses.stream().map(Address::toString).toList()
+                                            : Collections.emptyList();
+
         List<String> comments = new ArrayList<>();
         comments.add(commentTxId(bitcoin.getTxId()));
         comments.add(commentBtcTx(bitcoin));
+        comments.addAll(addressStrings);
 
         return new LedgerTransaction(bitcoin.getTxId(),
                 time,
@@ -264,7 +288,11 @@ record LedgerTransaction(Sha256Hash txId,
                 Collections.unmodifiableList(splits));
     }
 
-    public static LedgerTransaction fromBitcoinSelfSend(List<BitcoinTransactionInfo> bts) {
+    public static LedgerTransaction fromBitcoinSelfSend(ConsolidatedTransaction ct) {
+        if (ct.omniTx() != null) {
+            throw new IllegalStateException("Unexpected Omni transaction");
+        }
+        List<BitcoinTransactionInfo> bts = ct.outputs();
         LocalDateTime time = timeFromEpoch(bts.get(0).getTime());
         BigDecimal fee = bts.stream()
                 .map(BitcoinTransactionInfo::getFee)
@@ -283,9 +311,16 @@ record LedgerTransaction(Sha256Hash txId,
             splits.add(new Split("Expense:TransactionFees", fee.negate(), OmniCurrencyCode.BTC.toString()));
         }
 
+        List<Address> addresses = ct.addresses();
+        List<String> addressStrings = (addresses != null)
+                ? addresses.stream().map(Address::toString).toList()
+                : Collections.emptyList();
+
+
         List<String> comments = new ArrayList<>();
         comments.add(commentTxId(bts.get(0).getTxId()));
         comments.addAll(commentsBtcTxs(bts));
+        comments.addAll(addressStrings);
 
         return new LedgerTransaction(bts.get(0).getTxId(),
                 time,
