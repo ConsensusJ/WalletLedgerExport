@@ -15,7 +15,10 @@ import org.consensusj.bitcoin.jsonrpc.RpcURI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -35,6 +38,9 @@ public class WalletAccountingExport {
 
     public static void main(String[] args) throws IOException {
         String net = args.length > 0 ? args[0] : "mainnet";
+        PrintStream out = args.length == 3 && args[1].equals("-o")
+                ? new PrintStream(new FileOutputStream(args[2]))
+                :  System.out;
         String user = "bitcoinrpc";
         String password = "pass";
         OmniClient client = switch (net) {
@@ -48,7 +54,7 @@ public class WalletAccountingExport {
         var list = consTxs.stream()
                 .map(LedgerTransaction::fromConsolidated)
                 .toList();
-        tool.print(list);
+        tool.print(out, list);
     }
 
     /**
@@ -161,9 +167,9 @@ public class WalletAccountingExport {
         return Collections.unmodifiableList(addresses);
     }
 
-    void print(List<LedgerTransaction> txs) {
+    void print(PrintStream out, List<LedgerTransaction> txs) {
         txs.stream()
             .map(LedgerTransaction::toString)
-            .forEach(System.out::println);
+            .forEach(out::println);
     }
 }
