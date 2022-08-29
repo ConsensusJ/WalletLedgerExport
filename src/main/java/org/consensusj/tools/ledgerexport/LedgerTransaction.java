@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +43,7 @@ record LedgerTransaction(Sha256Hash txId,
                          List<Split> splits) {
     private static final Logger log = LoggerFactory.getLogger(LedgerTransaction.class);
     private static final String BTC_CODE = OmniCurrencyCode.BTC.toString();
+    private static final DateTimeFormatter DEFAULT_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String walletAccount = "Assets:Crypto:OmniCore";
     private static final Map<String, String> tickerMap = Map.of("OMNI_SPT#57", "SAFEAPP");
 
@@ -60,7 +62,8 @@ record LedgerTransaction(Sha256Hash txId,
                 .stream()
                 .map(c -> String.format("; %s", c))
                 .collect(Collectors.joining("\n", "\n", "\n"));
-        var mainLine = String.format("%1$tY-%1$tm-%1$td %1HH:%1MM:%1SS %2$s\n", time, description);
+        var timestamp = time.format(DEFAULT_TIME_FORMATTER);
+        var mainLine = String.format("%s %2$s\n", timestamp, description);
         var splitLines = splits.stream()
                         .map(Split::toLedger)
                         .collect(Collectors.joining("\n", "", "\n"));
