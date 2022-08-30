@@ -33,8 +33,7 @@ import java.util.stream.Collectors;
  */
 public class WalletAccountingExport {
     private static final Logger log = LoggerFactory.getLogger(WalletAccountingExport.class);
-
-    private final OmniClient client;
+    private final PrintStream out;
 
     public static void main(String[] args) throws IOException {
         String net = args.length > 0 ? args[0] : "mainnet";
@@ -49,125 +48,27 @@ public class WalletAccountingExport {
             case "regtest" -> new OmniClient(RegTestParams.get(), RpcURI.getDefaultRegTestURI(), user, password);
             default -> throw new IllegalArgumentException("invalid network");
         };
-        var tool = new WalletAccountingExport(client);
-        var consTxs = tool.fetch();
+        // Get Consolidated Transaction Information from Bitcoin/Omni JSON-RPC server
+        var consolidator = new Consolidator(client);
+        var consTxs = consolidator.fetch();
 
+        // Import them to a list of LedgerTransaction
         var importer = new TransactionImporter();
         var list = importer.importTransactions(consTxs);
-        tool.print(out, list);
+
+        // Write a list of LedgerTransaction to an output stream
+        var tool = new WalletAccountingExport(out);
+        tool.print(list);
     }
 
     /**
-     *
+     * Service for writing LedgerTransaction to an output stream.
      */
-    public WalletAccountingExport(OmniClient client) {
-        this.client = client;
+    public WalletAccountingExport(PrintStream out) {
+        this.out = out;
     }
-
-    /**
-     * Return a list of ConsolidatedTransaction sorted by time
-     */
-    List<ConsolidatedTransaction> fetch() throws IOException {
-        // Get Bitcoin transactions (BitcoinTransactionInfo) and group by transaction ID (there can be multiple objects per tx in some cases)
-        Map<Sha256Hash, List<BitcoinTransactionInfo>> bitcoinTxs = client.listTransactions()
-                .stream()
-                .peek(bt -> {
-                    if (bt.getComment().isPresent()) {
-                        log.warn("Found comment: {}", bt.getComment());
-                    }
-                })
-                .collect(Collectors.groupingBy(BitcoinTransactionInfo::getTxId));
-
-        // Get list of addresses from wallet Transaction detail and index by transaction ID
-        Map<Sha256Hash, List<Address>> txAddresses = bitcoinTxs.keySet().stream()
-                .map(this::getWalletTransaction)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(WalletTransactionInfo::getTxid, this::getAddresses));
-
-        // Get Omni Transactions and index by transaction ID
-        Map<Sha256Hash, OmniTransactionInfo> omniTxs = client.omniListTransactions(Integer.MAX_VALUE)
-                .stream()
-                .peek(ot -> log.info(ot.toString()))
-                .collect(Collectors.toMap(OmniTransactionInfo::getTxId, Function.identity()));
-
-        // Generate list of Consolidated Transactions
-        return bitcoinTxs.entrySet()
-                .stream()
-                .map(e -> new ConsolidatedTransaction(e.getValue(), omniTxs.get(e.getKey()), txAddresses.get(e.getKey())))
-                .sorted(Comparator.comparing(ConsolidatedTransaction::time))
-                .toList();
-    }
-
-    Transaction getTransaction(Sha256Hash txId) {
-        if (txId.toString().equals("3fb3fb770c12c241a2b8e12c56672f92d04a38377aa86743c33e8c6fc0b6dae1"))  {
-            log.warn("txid is {}", txId);
-        }
-        try {
-            return client.getRawTransaction(txId);
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
-    WalletTransactionInfo getWalletTransaction(Sha256Hash txId) {
-        if (txId.toString().equals("3fb3fb770c12c241a2b8e12c56672f92d04a38377aa86743c33e8c6fc0b6dae1"))  {
-            log.warn("txid is {}", txId);
-        }
-        try {
-            WalletTransactionInfo info = client.getTransaction(txId, false, true);
-            return info;
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
-    // Get a list of (output-only, for now) addresses from a WalletTransactionInfo
-    List<Address> getAddresses(WalletTransactionInfo tx) {
-        List<Address> addresses = new ArrayList<>();
-//        tx.getDetails().forEach(detail -> {
-//            var addr = detail.getAddress();
-//            if (addr != null) {
-//                addresses.add(addr);
-//            }
-//        });
-        var decoded = tx.getDecoded();
-        if (decoded != null) {
-            var vouts = decoded.getVout();
-            if (vouts != null) {
-                decoded.getVout().forEach(vout -> {
-                    var list = vout.getScriptPubKey().getAddresses();
-                    if (list != null) {
-                        addresses.addAll(list);
-                    }
-                });
-            }
-        }
-        return Collections.unmodifiableList(addresses);
-    }
-
-    // Get a list of addresses from a bitcoinj Transaction (currently unused)
-    List<Address> getAddresses(Transaction tx) {
-        NetworkParameters params = client.getNetParams();
-        List<Address> addresses = new ArrayList<>();
-        tx.getInputs().forEach(input -> {
-            var connectedOutput = input.getConnectedOutput();
-            if (connectedOutput != null) {
-                var address = input.getConnectedOutput().getAddressFromP2SH(params);
-                if (address != null) {
-                    addresses.add(address);
-                }
-            }
-        });
-        tx.getOutputs().forEach(output -> {
-            var address = output.getAddressFromP2SH(params);
-            if (address != null) {
-                addresses.add(address);
-            }
-        });
-        return Collections.unmodifiableList(addresses);
-    }
-
-    void print(PrintStream out, List<LedgerTransaction> txs) {
+    
+    void print(List<LedgerTransaction> txs) {
         txs.stream()
             .map(LedgerTransaction::toString)
             .forEach(out::println);
