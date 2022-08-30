@@ -17,10 +17,13 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 // TODO: Allow various types of configuration in its constructor (e.g. income/expense account mappings, additional hints, etc.)
 // TODO: Simplify static constructors by factoring out common code
@@ -35,15 +38,27 @@ public class TransactionImporter {
     private static final Logger log = LoggerFactory.getLogger(TransactionImporter.class);
     private static final String BTC_CODE = OmniCurrencyCode.BTC.toString();
     private static final String walletAccount = "Assets:Crypto:OmniCore";
+    private static final String defaultIncome = "Income:Misc";
+    private static final String defaultExpense = "Expense:Misc";
     private static final Map<String, String> tickerMap = Map.of("OMNI_SPT#57", "SAFEAPP");
+    private final Map<Address, AddressAccount> addressAccountMap;
 
+    public TransactionImporter() {
+        this.addressAccountMap = new HashMap<>();
+    }
+
+    public TransactionImporter(List<AddressAccount> addressAccounts) {
+        this.addressAccountMap = addressAccounts.stream()
+                .collect(Collectors.toMap(AddressAccount::address, Function.identity()));
+    }
+    
     public List<LedgerTransaction> importTransactions(List<ConsolidatedTransaction> consTxs) {
         return consTxs.stream()
-                .map(TransactionImporter::fromConsolidated)
+                .map(this::fromConsolidated)
                 .toList();
     }
 
-    public static LedgerTransaction fromConsolidated(ConsolidatedTransaction cons) {
+    public LedgerTransaction fromConsolidated(ConsolidatedTransaction cons) {
         boolean isOmni = cons.omniTx() != null;
         if (cons.txId().toString().equals("91c44eaa107acb8aac4bb283aba91a6fed6bcff91f0b41e5202f3df026dca68e"))  {
             log.warn("txid is {}", cons.txId());
@@ -68,7 +83,7 @@ public class TransactionImporter {
         }
     }
 
-    public static LedgerTransaction fromReceivedOmni(ConsolidatedTransaction ct) {
+    public LedgerTransaction fromReceivedOmni(ConsolidatedTransaction ct) {
         if (ct.outputs().size() != 1) {
             throw new IllegalStateException("expected single Bitcoin transaction");
         }
@@ -79,7 +94,7 @@ public class TransactionImporter {
         OmniTransactionInfo omni = ct.omniTx();
         boolean isSend = bitcoin.getCategory().equals("send");
         boolean isOmni = (omni != null);
-        String account = isSend ? "Expense:Misc" : "Income:Misc";
+        String account = isSend ? defaultExpense : incomeAccount(bitcoin.getAddress());
         LocalDateTime time = timeFromEpoch(bitcoin.getTime());
         BigDecimal fee = (bitcoin.getFee() != null) ? bitcoin.getFee().toBtc() : BigDecimal.ZERO;
 
@@ -128,11 +143,11 @@ public class TransactionImporter {
                 Collections.unmodifiableList(splits));
     }
 
-    public static LedgerTransaction fromSentOmni(ConsolidatedTransaction ct) {
+    public LedgerTransaction fromSentOmni(ConsolidatedTransaction ct) {
         if (ct.omniTx().getPropertyId() != null && ct.omniTx().getPropertyId().ecosystem() == Ecosystem.TOMNI) {
             return fromOmniTestEcosystem(ct);
         }
-        String account = "Expense:Misc";
+        String account = defaultExpense;
         LocalDateTime time = timeFromInstant(ct.time());
         BigDecimal fee = ct.outputs().stream()
                 .map(BitcoinTransactionInfo::getFee)
@@ -171,7 +186,7 @@ public class TransactionImporter {
                 Collections.unmodifiableList(splits));
     }
 
-    public static LedgerTransaction fromOmniTestEcosystem(ConsolidatedTransaction ct) {
+    public LedgerTransaction fromOmniTestEcosystem(ConsolidatedTransaction ct) {
         LocalDateTime time = timeFromInstant(ct.time());
         BigDecimal fee = ct.outputs().stream()
                 .map(BitcoinTransactionInfo::getFee)
@@ -201,7 +216,7 @@ public class TransactionImporter {
                 splits);
     }
 
-    public static LedgerTransaction fromBitcoin(ConsolidatedTransaction ct) {
+    public LedgerTransaction fromBitcoin(ConsolidatedTransaction ct) {
         if (ct.outputs().size() != 1) {
             throw new IllegalStateException("expected single Bitcoin transaction");
         }
@@ -210,7 +225,7 @@ public class TransactionImporter {
         }
         BitcoinTransactionInfo bitcoin = ct.outputs().get(0);
         boolean isSend = bitcoin.getCategory().equals("send");
-        String account = isSend ? "Expense:Misc" : "Income:Misc";
+        String account = isSend ? defaultExpense : incomeAccount(bitcoin.getAddress());
         LocalDateTime time = timeFromEpoch(bitcoin.getTime());
         BigDecimal fee = (bitcoin.getFee() != null) ? bitcoin.getFee().toBtc() : BigDecimal.ZERO;
 
@@ -252,7 +267,7 @@ public class TransactionImporter {
                 Collections.unmodifiableList(splits));
     }
 
-    public static LedgerTransaction fromBitcoinSelfSend(ConsolidatedTransaction ct) {
+    public LedgerTransaction fromBitcoinSelfSend(ConsolidatedTransaction ct) {
         if (ct.omniTx() != null) {
             throw new IllegalStateException("Unexpected Omni transaction");
         }
@@ -291,6 +306,11 @@ public class TransactionImporter {
                 "Self send (consolidating tx)",
                 comments,
                 splits);
+    }
+
+    private String incomeAccount(Address address) {
+        AddressAccount a = this.addressAccountMap.get(address);
+        return a != null ? a.account() : defaultIncome;
     }
 
     private static String commentTxId(Sha256Hash txId) {
