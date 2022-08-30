@@ -51,9 +51,9 @@ public class WalletAccountingExport {
         };
         var tool = new WalletAccountingExport(client);
         var consTxs = tool.fetch();
-        var list = consTxs.stream()
-                .map(LedgerTransaction::fromConsolidated)
-                .toList();
+
+        var importer = new TransactionImporter();
+        var list = importer.importTransactions(consTxs);
         tool.print(out, list);
     }
 
