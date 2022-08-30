@@ -344,7 +344,7 @@ public class TransactionImporter {
     }
 
     private static LocalDateTime timeFromEpoch(long epoch) {
-        return Instant.ofEpochSecond(epoch).atZone(ZoneId.systemDefault()).toLocalDateTime();
+        return timeFromInstant(Instant.ofEpochSecond(epoch));
     }
 
     private static LocalDateTime timeFromInstant(Instant instant) {
