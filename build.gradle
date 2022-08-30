@@ -16,10 +16,10 @@ plugins {
 version = ledgerExportVersion
 group = 'org.consensusj'
 
-ext.moduleName = 'org.consensusj.tool.ledgerexport'
+ext.moduleName = 'org.consensusj.tools .ledgerexport'
 
 application {
-    mainClass = 'org.consensusj.tool.ledgerexport'
+    mainClass = 'org.consensusj.tools.ledgerexport.WalletAccountingExport'
     applicationName = 'LedgerExport'
 }
 
@@ -48,7 +48,7 @@ dependencies {
 }
 
 run {
-    args = [ 'regtest']
+    args = [ 'mainnet', '-o', 'omnicore-export.ledger', '-m', 'test-data/addresses_accounts.csv']
 }
 
 jar {
