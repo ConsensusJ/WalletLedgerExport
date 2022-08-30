@@ -1,3 +1,18 @@
+/*
+ * Copyright 2022 M. Sean Gilligan.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.consensusj.tools.ledgerexport;
 
 import foundation.omni.CurrencyID;
@@ -43,22 +58,34 @@ public class TransactionImporter {
     private static final Map<String, String> tickerMap = Map.of("OMNI_SPT#57", "SAFEAPP");
     private final Map<Address, AddressAccount> addressAccountMap;
 
+    /**
+     * Construct with empty account mapping list
+     */
     public TransactionImporter() {
         this.addressAccountMap = new HashMap<>();
     }
 
+    /**
+     * Construct with account mapping list
+     * @param addressAccounts A list of addresses to map to Ledger income accounts
+     */
     public TransactionImporter(List<AddressAccount> addressAccounts) {
         this.addressAccountMap = addressAccounts.stream()
                 .collect(Collectors.toMap(AddressAccount::address, Function.identity()));
     }
-    
+
+    /**
+     * Import consolidated transactions to Ledger objects
+     * @param consTxs  list of consolidated transactions to import
+     * @return list of Ledger transactions
+     */
     public List<LedgerTransaction> importTransactions(List<ConsolidatedTransaction> consTxs) {
         return consTxs.stream()
                 .map(this::fromConsolidated)
                 .toList();
     }
 
-    public LedgerTransaction fromConsolidated(ConsolidatedTransaction cons) {
+    private LedgerTransaction fromConsolidated(ConsolidatedTransaction cons) {
         boolean isOmni = cons.omniTx() != null;
         if (cons.txId().toString().equals("91c44eaa107acb8aac4bb283aba91a6fed6bcff91f0b41e5202f3df026dca68e"))  {
             log.warn("txid is {}", cons.txId());
@@ -83,7 +110,7 @@ public class TransactionImporter {
         }
     }
 
-    public LedgerTransaction fromReceivedOmni(ConsolidatedTransaction ct) {
+    private LedgerTransaction fromReceivedOmni(ConsolidatedTransaction ct) {
         if (ct.outputs().size() != 1) {
             throw new IllegalStateException("expected single Bitcoin transaction");
         }
@@ -143,7 +170,7 @@ public class TransactionImporter {
                 Collections.unmodifiableList(splits));
     }
 
-    public LedgerTransaction fromSentOmni(ConsolidatedTransaction ct) {
+    private LedgerTransaction fromSentOmni(ConsolidatedTransaction ct) {
         if (ct.omniTx().getPropertyId() != null && ct.omniTx().getPropertyId().ecosystem() == Ecosystem.TOMNI) {
             return fromOmniTestEcosystem(ct);
         }
@@ -186,7 +213,7 @@ public class TransactionImporter {
                 Collections.unmodifiableList(splits));
     }
 
-    public LedgerTransaction fromOmniTestEcosystem(ConsolidatedTransaction ct) {
+    private LedgerTransaction fromOmniTestEcosystem(ConsolidatedTransaction ct) {
         LocalDateTime time = timeFromInstant(ct.time());
         BigDecimal fee = ct.outputs().stream()
                 .map(BitcoinTransactionInfo::getFee)
@@ -216,7 +243,7 @@ public class TransactionImporter {
                 splits);
     }
 
-    public LedgerTransaction fromBitcoin(ConsolidatedTransaction ct) {
+    private LedgerTransaction fromBitcoin(ConsolidatedTransaction ct) {
         if (ct.outputs().size() != 1) {
             throw new IllegalStateException("expected single Bitcoin transaction");
         }
@@ -267,7 +294,7 @@ public class TransactionImporter {
                 Collections.unmodifiableList(splits));
     }
 
-    public LedgerTransaction fromBitcoinSelfSend(ConsolidatedTransaction ct) {
+    private LedgerTransaction fromBitcoinSelfSend(ConsolidatedTransaction ct) {
         if (ct.omniTx() != null) {
             throw new IllegalStateException("Unexpected Omni transaction");
         }

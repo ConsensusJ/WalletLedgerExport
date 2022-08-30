@@ -1,3 +1,18 @@
+/*
+ * Copyright 2022 M. Sean Gilligan.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.consensusj.tools.ledgerexport;
 
 import foundation.omni.json.pojo.BitcoinTransactionInfo;
@@ -21,21 +36,28 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+// TODO: Detect Bitcoin versus Omni Core server and disable Omni-specific queries if not necessary/supported.
 /**
- *
+ * Service object for creating lists of {@link ConsolidatedTransaction}
  */
 public class Consolidator {
     private static final Logger log = LoggerFactory.getLogger(WalletAccountingExport.class);
     private final OmniClient client;
 
+    /**
+     * Construct from a JSON-RPC client
+     * @param client JSON-RPC client configured to talk to a Bitcoin Core or Omni Core server.
+     */
     public Consolidator(OmniClient client) {
         this.client = client;
     }
 
     /**
      * Return a list of ConsolidatedTransaction sorted by time
+     * @return list of consolidated transactions
+     * @throws IOException if an error occurred communicating with the server
      */
-    List<ConsolidatedTransaction> fetch() throws IOException {
+    public List<ConsolidatedTransaction> fetch() throws IOException {
         // Get Bitcoin transactions (BitcoinTransactionInfo) and group by transaction ID (there can be multiple objects per tx in some cases)
         Map<Sha256Hash, List<BitcoinTransactionInfo>> bitcoinTxs = client.listTransactions()
                 .stream()
@@ -66,7 +88,7 @@ public class Consolidator {
                 .toList();
     }
 
-    Transaction getTransaction(Sha256Hash txId) {
+    private Transaction getTransaction(Sha256Hash txId) {
         if (txId.toString().equals("3fb3fb770c12c241a2b8e12c56672f92d04a38377aa86743c33e8c6fc0b6dae1"))  {
             log.warn("txid is {}", txId);
         }
@@ -77,7 +99,7 @@ public class Consolidator {
         }
     }
 
-    WalletTransactionInfo getWalletTransaction(Sha256Hash txId) {
+    private WalletTransactionInfo getWalletTransaction(Sha256Hash txId) {
         if (txId.toString().equals("3fb3fb770c12c241a2b8e12c56672f92d04a38377aa86743c33e8c6fc0b6dae1"))  {
             log.warn("txid is {}", txId);
         }
@@ -90,7 +112,7 @@ public class Consolidator {
     }
 
     // Get a list of (output-only, for now) addresses from a WalletTransactionInfo
-    List<Address> getAddresses(WalletTransactionInfo tx) {
+    private List<Address> getAddresses(WalletTransactionInfo tx) {
         List<Address> addresses = new ArrayList<>();
 //        tx.getDetails().forEach(detail -> {
 //            var addr = detail.getAddress();
@@ -114,7 +136,7 @@ public class Consolidator {
     }
 
     // Get a list of addresses from a bitcoinj Transaction (currently unused)
-    List<Address> getAddresses(Transaction tx) {
+    private List<Address> getAddresses(Transaction tx) {
         NetworkParameters params = client.getNetParams();
         List<Address> addresses = new ArrayList<>();
         tx.getInputs().forEach(input -> {
