@@ -68,7 +68,16 @@ public class WalletAccountingExport {
 
         // Write a list of LedgerTransaction to an output stream
         var tool = new WalletAccountingExport(out);
-        tool.print(list);
+
+        boolean filter = false;
+
+        var filteredList = filter
+                        ? list.stream()
+                                .filter(lt -> lt.matchesAccount("Income:Consulting"))
+                                .toList()
+                        : list;
+
+        tool.print(filteredList);
     }
 
     /**

@@ -43,4 +43,13 @@ record LedgerTransaction(Sha256Hash txId,
                         .collect(Collectors.joining("\n", "", "\n"));
         return commentLines + mainLine + splitLines;
     }
+
+    /**
+     * Check if any split matches (contains) the match string
+     * @param matchString A full or partial account name
+     * @return true if any split matches this account
+     */
+    public boolean matchesAccount(String matchString) {
+        return splits().stream().anyMatch(s -> s.account().contains(matchString));
+    }
 }
