@@ -15,10 +15,10 @@
  */
 package org.consensusj.tools.ledgerexport;
 
-import foundation.omni.json.pojo.BitcoinTransactionInfo;
 import foundation.omni.json.pojo.OmniTransactionInfo;
 import org.bitcoinj.core.Address;
 import org.bitcoinj.core.Sha256Hash;
+import org.consensusj.bitcoin.json.pojo.BitcoinTransactionInfo;
 
 import java.time.Instant;
 import java.util.List;
@@ -32,12 +32,20 @@ record ConsolidatedTransaction(Instant time,
                                Sha256Hash txId,
                                List<BitcoinTransactionInfo> outputs,
                                List<Address> addresses,
-                               OmniTransactionInfo omniTx) {
+                               OmniTransactionInfo omniTx,
+                               OmniTradeCounterpartyTransaction omniCounterpartyTx)  {
 
     /**
      * Convenience constructor that takes time and txId from the first BitcoinTransactionInfo in the list.
      */
     public ConsolidatedTransaction(List<BitcoinTransactionInfo> outputs, OmniTransactionInfo info, List<Address> addresses) {
-        this(Instant.ofEpochSecond(outputs.get(0).getTime()), outputs.get(0).getTxId(), outputs, addresses, info);
+        this(Instant.ofEpochSecond(outputs.get(0).getTime()), outputs.get(0).getTxId(), outputs, addresses, info, null);
+    }
+
+    /** 
+     * Convenience constructor that takes time and txId from the first BitcoinTransactionInfo in the list.
+     */
+    public ConsolidatedTransaction(OmniTradeCounterpartyTransaction omniPseudo) {
+        this(Instant.ofEpochSecond(omniPseudo.trade().getBlockTime()), omniPseudo.trade().getTxId(), List.of(), List.of(), null, omniPseudo);
     }
 }

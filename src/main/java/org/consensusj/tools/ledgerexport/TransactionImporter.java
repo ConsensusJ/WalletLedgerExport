@@ -17,12 +17,12 @@ package org.consensusj.tools.ledgerexport;
 
 import foundation.omni.CurrencyID;
 import foundation.omni.Ecosystem;
-import foundation.omni.json.pojo.BitcoinTransactionInfo;
 import foundation.omni.json.pojo.OmniTransactionInfo;
 import foundation.omni.money.OmniCurrencyCode;
 import org.bitcoinj.core.Address;
 import org.bitcoinj.core.Coin;
 import org.bitcoinj.core.Sha256Hash;
+import org.consensusj.bitcoin.json.pojo.BitcoinTransactionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,10 +40,11 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+
 // TODO: Allow various types of configuration in its constructor (e.g. income/expense account mappings, additional hints, etc.)
 // TODO: Simplify static constructors by factoring out common code
 // TODO: Handle Omni Create Token and Omni MetaDex transactions (calculate other fees and funds locked in multisig)
-// TODO: Figure out why BTC balance is off (low) for Sean's wallet (given other TODOs I'd expect the BTC balance to be too high)
+// TODO: Figure out why BTC balance is off (low) for Sean's wallet (given other TODOs I'd expect the BTC balance to be too high) -- looks like this was not filtering an unconfirmed transaction
 // TODO: Get total fees of Simple Send  (calculate other fees and funds locked in multisig)
 // TODO: Get total fees of Omni TEST ecosystem transactions
 /**
@@ -93,6 +94,7 @@ public class TransactionImporter {
         if (isOmni) {
             if (cons.outputs().size() == 1) {
                 if (cons.outputs().get(0).getCategory().equals("send")) {
+                    // THIS SHOULD NEVER HAPPEN ON AN OMNI SEND
                     log.warn("Unexpected: Our wallet sent an Omni tx with only one BitcoinTransactionInfo {}", cons.txId());
                 }
                 return fromReceivedOmni(cons);
@@ -119,6 +121,9 @@ public class TransactionImporter {
         }
         BitcoinTransactionInfo bitcoin = ct.outputs().get(0);
         OmniTransactionInfo omni = ct.omniTx();
+        if (omni.getTypeInt() != 0) {
+            log.warn("Expected to be receiving Omni and tx type is not SIMPLE_SEND");
+        }
         boolean isSend = bitcoin.getCategory().equals("send");
         boolean isOmni = (omni != null);
         String account = isSend ? defaultExpense : incomeAccount(bitcoin.getAddress());
@@ -171,7 +176,9 @@ public class TransactionImporter {
     }
 
     private LedgerTransaction fromSentOmni(ConsolidatedTransaction ct) {
-        if (ct.omniTx().getPropertyId() != null && ct.omniTx().getPropertyId().ecosystem() == Ecosystem.TOMNI) {
+        if ((ct.omniTx().getPropertyId() != null && ct.omniTx().getPropertyId().ecosystem() == Ecosystem.TOMNI) ||
+                (ct.omniTx().getTypeInt() == 25 && CurrencyID.of((Integer) ct.omniTx().getOtherInfo().get("propertyiddesired")).ecosystem() == Ecosystem.TOMNI) ||
+                (!ct.omniTx().isValid())) {
             return fromOmniTestEcosystem(ct);
         }
         String account = defaultExpense;
@@ -185,13 +192,31 @@ public class TransactionImporter {
 
         List<LedgerTransaction.Split> splits = new ArrayList<>();
 
-        // Wallet account
-        BigDecimal amount = ct.omniTx().getAmount() != null ? ct.omniTx().getAmount().bigDecimalValue() : BigDecimal.ZERO;
-        String currency = calcCurrency(ct.omniTx());
-        splits.add(new LedgerTransaction.Split(walletAccount, amount.negate(), currency));
+        OmniTransactionInfo omniTx = ct.omniTx();
+        BigDecimal amount = omniTx.getAmount() != null ? omniTx.getAmount().bigDecimalValue() : BigDecimal.ZERO;
+        String currency = calcCurrency(omniTx);
 
-        // Other account
-        splits.add(new LedgerTransaction.Split(account, amount, currency));
+
+        log.info("Omni Transaction Type: {}", omniTx.getTypeInt());
+        switch (omniTx.getTypeInt()) {
+            case 0 -> {    // Simple Send
+                // Wallet account
+                splits.add(new LedgerTransaction.Split(walletAccount, amount.negate(), currency));
+                // Other account
+                splits.add(new LedgerTransaction.Split(account, amount, currency));
+            }
+            case 25 -> {    // MetaDex Trade
+                log.warn("Metadex Trade");
+            }
+            case 50 -> {
+                // Add new tokens to Wallet account
+                splits.add(new LedgerTransaction.Split(walletAccount, amount, currency));
+                splits.add(new LedgerTransaction.Split("Income:TokenCreation", amount.negate(), currency));
+            }
+            default -> {
+                log.warn("Unsupported Transaction Type: {}({})", omniTx.getType(), omniTx.getTypeInt());
+            }
+        }
 
         // Fee
         if (fee.compareTo(BigDecimal.ZERO) != 0) {
@@ -204,7 +229,7 @@ public class TransactionImporter {
         List<String> comments = new ArrayList<>();
         comments.add(commentTxId(ct.txId()));
         comments.addAll(commentsBtcTxs(ct.outputs()));
-        comments.add(commentOmniTx(ct.omniTx()));
+        comments.add(commentOmniTx(omniTx));
 
         return new LedgerTransaction(ct.txId(),
                 time,
@@ -251,6 +276,12 @@ public class TransactionImporter {
             throw new IllegalStateException("Unexpected Omni transaction");
         }
         BitcoinTransactionInfo bitcoin = ct.outputs().get(0);
+        if (bitcoin.isAbandoned()) {
+            log.warn("abandoned transaction: {}", bitcoin.getTxId());
+        }
+        if (bitcoin.getWalletConflicts().size() > 0) {
+            log.warn("abandoned transaction: {}", bitcoin.getTxId());
+        }
         boolean isSend = bitcoin.getCategory().equals("send");
         String account = isSend ? defaultExpense : incomeAccount(bitcoin.getAddress());
         LocalDateTime time = timeFromEpoch(bitcoin.getTime());
@@ -262,11 +293,11 @@ public class TransactionImporter {
         // Amount will already be positive for incoming and negative for outgoing
         BigDecimal amount = bitcoin.getAmount().toBtc();
         String currency = BTC_CODE;
-        splits.add(new LedgerTransaction.Split(walletAccount, amount, currency));
+        splits.add(new LedgerTransaction.Split(walletAccount, isSend ? amount.add(fee) : amount, currency));
 
         // Other account
         BigDecimal otherAmount = isSend
-                ? amount.subtract(fee)     // amount is negative, subtracting negative fee reduces magnitude
+                ? amount // .subtract(fee)     // amount is negative, subtracting negative fee reduces magnitude
                 : amount;
         splits.add(new LedgerTransaction.Split(account, otherAmount.negate(), currency));
 
@@ -361,11 +392,13 @@ public class TransactionImporter {
     }
 
     private static String commentOmniTx(OmniTransactionInfo ot) {
+        Address refAddress = ot.getReferenceAddress();
+        String refAddrString = (refAddress != null) ? refAddress.toString() : "n/a";
         return String.format("omni tx type: %s(%d), send-addr: %s, ref-addr: %s",
                 ot.getType(),
                 ot.getTypeInt(),
                 ot.getSendingAddress(),
-                ot.getReferenceAddress().map(Address::toString).orElse("n/a"));
+                refAddrString);
     }
 
     private static BigDecimal calcAmount(BitcoinTransactionInfo bitcoin, OmniTransactionInfo omni) {

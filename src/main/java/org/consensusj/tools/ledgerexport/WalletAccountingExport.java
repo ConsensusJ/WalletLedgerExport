@@ -27,10 +27,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.file.Files;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 // TODO: Use pico-cli to manage command-line options
 /**
@@ -38,7 +35,6 @@ import java.util.Optional;
  */
 public class WalletAccountingExport {
     private static final Logger log = LoggerFactory.getLogger(WalletAccountingExport.class);
-    private final PrintStream out;
 
     /**
      * Main entry point for command-line tool
@@ -61,66 +57,23 @@ public class WalletAccountingExport {
             case "regtest" -> new OmniClient(RegTestParams.get(), RpcURI.getDefaultRegTestURI(), user, password);
             default -> throw new IllegalArgumentException("invalid network");
         };
-        // Get Consolidated Transaction Information from Bitcoin/Omni JSON-RPC server
-        var consolidator = new Consolidator(client);
-        var consTxs = consolidator.fetch();
 
-        List<AddressAccount> addressAccounts = (accountMapFile != null)
-                ? readAddressAccountCSV(accountMapFile)
-                : Collections.emptyList();
+        AccountingExporter exporter = new OmniLedgerExporter(client, accountMapFile, out);
+        exporter.export();
 
 
-        // Import them to a list of LedgerTransaction
-        var importer = new TransactionImporter(addressAccounts);
-        var list = importer.importTransactions(consTxs);
+        exporter.initialize();
+        List<ConsolidatedTransaction> transactions = exporter.collectData();
+        List<LedgerTransaction> entries = exporter.convertToLedger(transactions);
 
-        // Write a list of LedgerTransaction to an output stream
-        var tool = new WalletAccountingExport(out);
-
+        // TODO: Add command-line option to enable output-filtering by full/partial account string
         boolean filter = false;
-
-        var filteredList = filter
-                        ? list.stream()
-                                .filter(lt -> lt.matchesAccount("Income:Consulting"))
-                                .toList()
-                        : list;
-
-        tool.print(filteredList);
-    }
-
-    /**
-     * Service for writing LedgerTransaction to an output stream.
-     * @param out Where to write the output
-     */
-    public WalletAccountingExport(PrintStream out) {
-        this.out = out;
-    }
-    
-    void print(List<LedgerTransaction> txs) {
-        txs.stream()
-            .map(LedgerTransaction::toString)
-            .forEach(out::println);
-    }
-
-    // Simple CSV parsing
-    // TODO: Use a CSV library to handle commas, quotes, etc
-    static List<AddressAccount> readAddressAccountCSV(File file) {
-        try {
-            return Files.lines(file.toPath())
-                    .skip(1)    // skip column headers
-                    .map(line -> line.split(","))
-                    .map(WalletAccountingExport::arrayToAA)
-                    .flatMap(Optional::stream)
-                    .toList();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    // Return an AddressAccount if account is specified, empty otherwise
-    private static Optional<AddressAccount> arrayToAA(String[] a) {
-        return a.length >= 3
-                ? Optional.of(new AddressAccount(a[0], a[1], a[2]))
-                : Optional.empty();
+        String filterAccount = "Income:Consulting";
+        List<LedgerTransaction> outputEntries = filter
+                                    ? entries.stream()
+                                        .filter(t -> t.matchesAccount(filterAccount))
+                                        .toList()
+                                    : entries;
+        exporter.output(outputEntries);
     }
 }

@@ -15,19 +15,22 @@
  */
 package org.consensusj.tools.ledgerexport;
 
-import foundation.omni.json.pojo.BitcoinTransactionInfo;
+import foundation.omni.Ecosystem;
+import foundation.omni.json.pojo.OmniTradeInfo;
 import foundation.omni.json.pojo.OmniTransactionInfo;
 import foundation.omni.rpc.OmniClient;
 import org.bitcoinj.core.Address;
 import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.Sha256Hash;
 import org.bitcoinj.core.Transaction;
+import org.consensusj.bitcoin.json.pojo.BitcoinTransactionInfo;
 import org.consensusj.bitcoin.json.pojo.WalletTransactionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -42,7 +45,9 @@ import java.util.stream.Collectors;
  */
 public class Consolidator {
     private static final Logger log = LoggerFactory.getLogger(WalletAccountingExport.class);
+    private static final int minConfirmations = 1;
     private final OmniClient client;
+
 
     /**
      * Construct from a JSON-RPC client
@@ -59,13 +64,9 @@ public class Consolidator {
      */
     public List<ConsolidatedTransaction> fetch() throws IOException {
         // Get Bitcoin transactions (BitcoinTransactionInfo) and group by transaction ID (there can be multiple objects per tx in some cases)
-        Map<Sha256Hash, List<BitcoinTransactionInfo>> bitcoinTxs = client.listTransactions()
+        Map<Sha256Hash, List<BitcoinTransactionInfo>> bitcoinTxs = client.listTransactions("*", Integer.MAX_VALUE)
                 .stream()
-                .peek(bt -> {
-                    if (bt.getComment().isPresent()) {
-                        log.warn("Found comment: {}", bt.getComment());
-                    }
-                })
+                .filter(txInfo -> txInfo.getConfirmations() >= minConfirmations)
                 .collect(Collectors.groupingBy(BitcoinTransactionInfo::getTxId));
 
         // Get list of addresses from wallet Transaction detail and index by transaction ID
@@ -75,10 +76,24 @@ public class Consolidator {
                 .collect(Collectors.toMap(WalletTransactionInfo::getTxid, this::getAddresses));
 
         // Get Omni Transactions and index by transaction ID
-        Map<Sha256Hash, OmniTransactionInfo> omniTxs = client.omniListTransactions(Integer.MAX_VALUE)
+        Map<Sha256Hash, OmniTransactionInfo> omniTxs = client.omniListTransactions("*", Integer.MAX_VALUE)
                 .stream()
+                .filter(otxInfo -> otxInfo.isValid() && (otxInfo.getConfirmations() >= minConfirmations))
                 .peek(ot -> log.info(ot.toString()))
                 .collect(Collectors.toMap(OmniTransactionInfo::getTxId, Function.identity()));
+
+        // Build a map of OmniTradeInfos indexed by txId
+        List<Address> tradingAddresses = getOmniTradingAddresses(omniTxs.values());
+
+        // Build a list of counterparty transactions (i.e. balance-changing trade fulfilling txs from counterparties)
+        List<ConsolidatedTransaction> tradeHistoryList = tradingAddresses.stream()
+                .map(this::getTradeHistoryForAddress)
+                .flatMap(Collection::stream)
+                .map(oti -> oti.getMatches().stream().map(m -> new OmniTradeCounterpartyTransaction(oti, m)).toList())
+                .flatMap(Collection::stream)
+                .map(ConsolidatedTransaction::new)
+                .toList();
+
 
         // Generate list of Consolidated Transactions
         return bitcoinTxs.entrySet()
@@ -86,6 +101,29 @@ public class Consolidator {
                 .map(e -> new ConsolidatedTransaction(e.getValue(), omniTxs.get(e.getKey()), txAddresses.get(e.getKey())))
                 .sorted(Comparator.comparing(ConsolidatedTransaction::time))
                 .toList();
+
+        // TODO: Merge  tradeHistoryList with other consolidated txs, sort and return
+
+    }
+
+    private List<Address> getOmniTradingAddresses(Collection<OmniTransactionInfo> omniTxs) {
+        return omniTxs.stream()
+                .filter(ot -> ot.getTypeInt() == 25)
+                .map(OmniTransactionInfo::getSendingAddress)
+                .distinct()
+                .toList();
+    }
+
+    private List<OmniTradeInfo> getTradeHistoryForAddress(Address address) {
+        try {
+            List<OmniTradeInfo> trades = client.omniGetTradeHistoryForAddress(address, 100, null);
+            // Only return valid, non test ecosystem transactions
+            return trades.stream()
+                    .filter(oti -> oti.isValid() && oti.getPropertyIdForSale().ecosystem() != Ecosystem.TOMNI)
+                    .toList();
+        } catch (IOException e) {
+            return Collections.emptyList();
+        }
     }
 
     private Transaction getTransaction(Sha256Hash txId) {
