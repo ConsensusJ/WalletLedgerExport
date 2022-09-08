@@ -18,7 +18,9 @@ package org.consensusj.tools.ledgerexport;
 import org.bitcoinj.core.Sha256Hash;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,7 +29,7 @@ import java.util.stream.Collectors;
  * Representation of a Bitcoin/Omni Transaction for a plain-text accounting app like ledger-cli.
  */
 record LedgerTransaction(Sha256Hash txId,
-                         LocalDateTime time,
+                         Instant time,
                          String description,
                          List<String> comments,
                          List<Split> splits) {
@@ -51,8 +53,8 @@ record LedgerTransaction(Sha256Hash txId,
                 .stream()
                 .map(c -> String.format("; %s", c))
                 .collect(Collectors.joining("\n", "\n", "\n"));
-        var timestamp = time.format(DEFAULT_TIME_FORMATTER);
-        var mainLine = String.format("%s %2$s\n", timestamp, description);
+        var timeString = time.atZone(ZoneId.systemDefault()).format(DEFAULT_TIME_FORMATTER);
+        var mainLine = String.format("%s %2$s\n", timeString, description);
         var splitLines = splits.stream()
                         .map(Split::toLedger)
                         .collect(Collectors.joining("\n", "", "\n"));

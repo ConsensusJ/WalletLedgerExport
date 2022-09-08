@@ -132,7 +132,7 @@ public class TransactionImporter {
         );
 
         return new LedgerTransaction(omniMatchData.txId(),
-                timeFromInstant(omniMatchData.time()),
+                omniMatchData.time(),
                 "Omni Dex Matching Transaction",
                 comments,
                 Collections.unmodifiableList(splits));
@@ -152,7 +152,6 @@ public class TransactionImporter {
         }
         boolean isSend = bitcoin.getCategory().equals("send");
         String account = isSend ? defaultExpense : incomeAccount(bitcoin.getAddress());
-        LocalDateTime time = timeFromEpoch(bitcoin.getTime());
         BigDecimal fee = (bitcoin.getFee() != null) ? bitcoin.getFee().toBtc() : BigDecimal.ZERO;
 
         List<LedgerTransaction.Split> splits = new ArrayList<>();
@@ -191,7 +190,7 @@ public class TransactionImporter {
         );
 
         return new LedgerTransaction(bitcoin.getTxId(),
-                time,
+                Instant.ofEpochSecond(bitcoin.getTime()),
                 bitcoin.getLabel(),
                 comments,
                 Collections.unmodifiableList(splits));
@@ -205,7 +204,6 @@ public class TransactionImporter {
             return fromOmniTestEcosystem(otd);
         }
         String account = defaultExpense;
-        LocalDateTime time = timeFromInstant(otd.time());
         BigDecimal fee = otd.transactionInfos().stream()
                 .map(BitcoinTransactionInfo::getFee)
                 .filter(Objects::nonNull)
@@ -254,14 +252,13 @@ public class TransactionImporter {
         comments.add(commentOmniTx(omniTx));
 
         return new LedgerTransaction(otd.txId(),
-                time,
+                otd.time(),
                 "omni send",
                 comments,
                 Collections.unmodifiableList(splits));
     }
 
     private LedgerTransaction fromOmniTestEcosystem(OmniTransactionData otd) {
-        LocalDateTime time = timeFromInstant(otd.time());
         BigDecimal fee = otd.transactionInfos().stream()
                 .map(BitcoinTransactionInfo::getFee)
                 .filter(Objects::nonNull)
@@ -279,7 +276,7 @@ public class TransactionImporter {
         comments.addAll(commentsBtcTxs(otd.transactionInfos()));
 
         return new LedgerTransaction(otd.txId(),
-                time,
+                otd.time(),
                 "Invalid or Test Ecosystem Omni Transaction (fees only)",
                 comments,
                 splits);
@@ -298,7 +295,6 @@ public class TransactionImporter {
         }
         boolean isSend = bitcoin.getCategory().equals("send");
         String account = isSend ? defaultExpense : incomeAccount(bitcoin.getAddress());
-        LocalDateTime time = timeFromEpoch(bitcoin.getTime());
         BigDecimal fee = (bitcoin.getFee() != null) ? bitcoin.getFee().toBtc() : BigDecimal.ZERO;
 
         List<LedgerTransaction.Split> splits = new ArrayList<>();
@@ -333,7 +329,7 @@ public class TransactionImporter {
         comments.addAll(addressStrings);
 
         return new LedgerTransaction(bitcoin.getTxId(),
-                time,
+                Instant.ofEpochSecond(bitcoin.getTime()),
                 bitcoin.getLabel(),
                 comments,
                 Collections.unmodifiableList(splits));
@@ -341,7 +337,6 @@ public class TransactionImporter {
 
     private LedgerTransaction fromBitcoinSelfSend(BitcoinTransactionData btd) {
         List<BitcoinTransactionInfo> bts = btd.transactionInfos();
-        LocalDateTime time = timeFromEpoch(bts.get(0).getTime());
         BigDecimal fee = bts.stream()
                 .map(BitcoinTransactionInfo::getFee)
                 .filter(Objects::nonNull)
@@ -371,7 +366,7 @@ public class TransactionImporter {
         comments.addAll(addressStrings);
 
         return new LedgerTransaction(bts.get(0).getTxId(),
-                time,
+                Instant.ofEpochSecond(bts.get(0).getTime()),
                 "Self send (consolidating tx)",
                 comments,
                 splits);
@@ -437,13 +432,5 @@ public class TransactionImporter {
         String code = OmniCurrencyCode.idToCodeString(id);
         String mapped = tickerMap.get(code);    // OMNI_SPT#xx not valid in ledger-cli so map it to something else
         return (mapped != null) ? mapped : code;
-    }
-
-    private static LocalDateTime timeFromEpoch(long epoch) {
-        return timeFromInstant(Instant.ofEpochSecond(epoch));
-    }
-
-    private static LocalDateTime timeFromInstant(Instant instant) {
-        return instant.atZone(ZoneId.systemDefault()).toLocalDateTime();
     }
 }
