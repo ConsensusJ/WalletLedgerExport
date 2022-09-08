@@ -20,17 +20,13 @@ import foundation.omni.json.pojo.OmniTradeInfo;
 import foundation.omni.json.pojo.OmniTransactionInfo;
 import foundation.omni.rpc.OmniClient;
 import org.bitcoinj.core.Address;
-import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.Sha256Hash;
-import org.bitcoinj.core.Transaction;
 import org.consensusj.bitcoin.json.pojo.BitcoinTransactionInfo;
 import org.consensusj.bitcoin.json.pojo.WalletTransactionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -43,17 +39,16 @@ import java.util.stream.Stream;
 /**
  * Service object for creating lists of {@link TransactionData}
  */
-public class Consolidator {
-    private static final Logger log = LoggerFactory.getLogger(WalletAccountingExport.class);
+public class OmniExportClient {
+    private static final Logger log = LoggerFactory.getLogger(OmniExportClient.class);
     private static final int minConfirmations = 1;
     private final OmniClient client;
-
 
     /**
      * Construct from a JSON-RPC client
      * @param client JSON-RPC client configured to talk to a Bitcoin Core or Omni Core server.
      */
-    public Consolidator(OmniClient client) {
+    public OmniExportClient(OmniClient client) {
         this.client = client;
     }
 
@@ -68,7 +63,6 @@ public class Consolidator {
         // Fetch all wallet transactions and add to container
         // Some subsequent fetches assume there is a BitcoinTransactionData to add to, so they must wait for this to complete
         CompletableFuture<BitcoinTransactionsContainer> walletFetchComplete = fetchWalletTransactions(container);
-
 
         // Get list of addresses from wallet Transaction detail and add to each TransactionData
         CompletableFuture<BitcoinTransactionsContainer> addressQueriesComplete = walletFetchComplete.thenCompose(this::fetchWalletAddresses);
@@ -111,7 +105,6 @@ public class Consolidator {
                 .thenApply(list -> {
                     list.forEach(container::add);
                     return list;
-                    //return getOmniTradingAddresses(list);
                 });
     }
 
@@ -134,6 +127,7 @@ public class Consolidator {
                 );
     }
 
+    // An OmniTradeInfo.Match and the containing OmniTradeInfo
     record OmniMatch(OmniTradeInfo.Match match, OmniTradeInfo tradeInfo) {};
 
     private CompletableFuture<List<OmniMatchData>> fetchWalletOmniMatchesWithTime(List<OmniMatch> matches) {
@@ -147,6 +141,7 @@ public class Consolidator {
                 );
     }
 
+    // Additional network request to get timestamp for an OmniMatch and return an OmniMatchData
     private CompletableFuture<OmniMatchData> getMatchTime(OmniMatch match) {
         return client.supplyAsync(() -> client.getRawTransactionInfo(match.match().getTxId()))
                 .thenApply(raw -> new OmniMatchData(Instant.ofEpochSecond(raw.getTime()), match.tradeInfo(), match.match()));
@@ -162,8 +157,9 @@ public class Consolidator {
                 .thenApply(l -> l.stream().filter(t -> t.getConfirmations() >= minConfirmations).toList());
     }
 
-    private CompletableFuture<Void> fetchAddressesForTxData(OmniTransactionData txData) {
-        return this.getWalletTransaction(txData.txId()).thenAccept(wt ->
+    // Fetch addresses for a given BitcoinTransactionData and add them to the record
+    private CompletableFuture<Void> fetchAddressesForTxData(BitcoinTransactionData txData) {
+        return this.getTransaction(txData.txId()).thenAccept(wt ->
                         txData.add(wt.getDetails().stream()
                                 .map(WalletTransactionInfo.Detail::getAddress)
                                 .filter(Objects::nonNull)
@@ -172,25 +168,13 @@ public class Consolidator {
                 );
     }
 
-    // Get a list of all addresses this wallet used to trade on the Omni MetaDEX
+    // Get a list of all addresses this wallet used to trade on the Omni MetaDEX (Synchronous because no I/O)
     private List<Address> getOmniTradingAddresses(Collection<OmniTransactionInfo> omniTxs) {
         return omniTxs.stream()
                 .filter(ot -> ot.getTypeInt() == 25)
                 .map(OmniTransactionInfo::getSendingAddress)
                 .distinct()
                 .toList();
-    }
-
-    private List<OmniTradeInfo> getTradeHistoryForAddressSync(Address address) {
-        try {
-            List<OmniTradeInfo> trades = client.omniGetTradeHistoryForAddress(address, Integer.MAX_VALUE, null);
-            // Only return valid, non test ecosystem transactions
-            return trades.stream()
-                    .filter(oti -> oti.isValid() && oti.getPropertyIdForSale().ecosystem() != Ecosystem.TOMNI)
-                    .toList();
-        } catch (IOException e) {
-            return Collections.emptyList();
-        }
     }
 
     // Get a list of valid, non-test-ecosystem trades for address
@@ -202,64 +186,7 @@ public class Consolidator {
                         .toList());
     }
 
-    private Transaction getTransaction(Sha256Hash txId) {
-        if (txId.toString().equals("3fb3fb770c12c241a2b8e12c56672f92d04a38377aa86743c33e8c6fc0b6dae1"))  {
-            log.warn("txid is {}", txId);
-        }
-        try {
-            return client.getRawTransaction(txId);
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
-    private CompletableFuture<WalletTransactionInfo> getWalletTransaction(Sha256Hash txId) {
+    private CompletableFuture<WalletTransactionInfo> getTransaction(Sha256Hash txId) {
         return client.supplyAsync(() -> client.getTransaction(txId, false, true));
-    }
-
-    // Get a list of (output-only, for now) addresses from a WalletTransactionInfo
-    private List<Address> getAddresses(WalletTransactionInfo tx) {
-        List<Address> addresses = new ArrayList<>();
-//        tx.getDetails().forEach(detail -> {
-//            var addr = detail.getAddress();
-//            if (addr != null) {
-//                addresses.add(addr);
-//            }
-//        });
-        var decoded = tx.getDecoded();
-        if (decoded != null) {
-            var vouts = decoded.getVout();
-            if (vouts != null) {
-                decoded.getVout().forEach(vout -> {
-                    var list = vout.getScriptPubKey().getAddresses();
-                    if (list != null) {
-                        addresses.addAll(list);
-                    }
-                });
-            }
-        }
-        return Collections.unmodifiableList(addresses);
-    }
-
-    // Get a list of addresses from a bitcoinj Transaction (currently unused)
-    private List<Address> getAddresses(Transaction tx) {
-        NetworkParameters params = client.getNetParams();
-        List<Address> addresses = new ArrayList<>();
-        tx.getInputs().forEach(input -> {
-            var connectedOutput = input.getConnectedOutput();
-            if (connectedOutput != null) {
-                var address = input.getConnectedOutput().getAddressFromP2SH(params);
-                if (address != null) {
-                    addresses.add(address);
-                }
-            }
-        });
-        tx.getOutputs().forEach(output -> {
-            var address = output.getAddressFromP2SH(params);
-            if (address != null) {
-                addresses.add(address);
-            }
-        });
-        return Collections.unmodifiableList(addresses);
     }
 }

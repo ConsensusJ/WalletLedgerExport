@@ -33,14 +33,14 @@ public class OmniLedgerExporter implements AccountingExporter {
     private final OmniClient client;
     private final File accountMapFile;
     private final PrintStream out;
-    private final Consolidator consolidator;
+    private final OmniExportClient exportClient;
     private TransactionImporter importer;
 
     public OmniLedgerExporter(OmniClient client, File accountMapFile, PrintStream out) {
         this.client = client;
         this.accountMapFile = accountMapFile;
         this.out = out;
-        consolidator = new Consolidator(client);
+        exportClient = new OmniExportClient(client);
     }
 
     @Override
@@ -53,7 +53,7 @@ public class OmniLedgerExporter implements AccountingExporter {
 
     @Override
     public List<TransactionData> collectData() throws IOException {
-        return consolidator.fetch();
+        return exportClient.fetch();
     }
 
     @Override
