@@ -48,7 +48,7 @@ public interface AccountingExporter {
     
     /**
      * Collects transaction data from various sources. Returns a list of transactions in chronological order.
-     * There is one {@link ConsolidatedTransaction} per transaction hash/id/{@link Sha256Hash}.
+     * There is one {@link TransactionData} per transaction hash/id/{@link Sha256Hash}.
      * @return a chronologically sorted list of transactions
      */
     List<TransactionData> collectData() throws IOException;

@@ -40,7 +40,7 @@ import java.util.stream.Stream;
 
 // TODO: Detect Bitcoin versus Omni Core server and disable Omni-specific queries if not necessary/supported.
 /**
- * Service object for creating lists of {@link ConsolidatedTransaction}
+ * Service object for creating lists of {@link TransactionData}
  */
 public class Consolidator {
     private static final Logger log = LoggerFactory.getLogger(WalletAccountingExport.class);
