@@ -59,11 +59,9 @@ public class WalletAccountingExport {
         };
 
         AccountingExporter exporter = new OmniLedgerExporter(client, accountMapFile, out);
-        exporter.export();
-
-
+        
         exporter.initialize();
-        List<ConsolidatedTransaction> transactions = exporter.collectData();
+        List<TransactionData> transactions = exporter.collectData();
         List<LedgerTransaction> entries = exporter.convertToLedger(transactions);
 
         // TODO: Add command-line option to enable output-filtering by full/partial account string

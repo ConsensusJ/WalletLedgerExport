@@ -23,7 +23,7 @@ import java.util.List;
 /**
  * Interface for exporting transactions. Uses the Gang-of-Four <q>Template Method</q> pattern.
  * {@link #export()} defines the entire process as is typically performed, but the other methods
- * may be called directly if, for example, a tool wants to apply a filter or alternative sorting method
+ * can be called directly if, for example, a tool wants to apply a filter or alternative sorting method
  * to transaction before they are output.
  * <p>
  * Typically, an implementing class will take a {@link org.consensusj.bitcoin.jsonrpc.BitcoinClient} or subclass
@@ -35,7 +35,7 @@ public interface AccountingExporter {
      */
     default void export() throws IOException {
         initialize();
-        List<ConsolidatedTransaction> transactions = collectData();
+        List<TransactionData> transactions = collectData();
         List<LedgerTransaction> entries = convertToLedger(transactions);
         output(entries);
     }
@@ -51,14 +51,14 @@ public interface AccountingExporter {
      * There is one {@link ConsolidatedTransaction} per transaction hash/id/{@link Sha256Hash}.
      * @return a chronologically sorted list of transactions
      */
-    List<ConsolidatedTransaction> collectData() throws IOException;
+    List<TransactionData> collectData() throws IOException;
 
     /**
      * Creates a list of accounting transactions from collected transaction data.
      * @param transactions collected data
      * @return a chronologically sorted list of double-entry accounting transactions
      */
-    List<LedgerTransaction> convertToLedger(List<ConsolidatedTransaction> transactions);
+    List<LedgerTransaction> convertToLedger(List<TransactionData> transactions);
 
     /**
      * Outputs the accounting entries to a file, console, etc.

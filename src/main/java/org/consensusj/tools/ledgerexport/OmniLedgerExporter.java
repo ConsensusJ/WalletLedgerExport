@@ -52,12 +52,12 @@ public class OmniLedgerExporter implements AccountingExporter {
     }
 
     @Override
-    public List<ConsolidatedTransaction> collectData() throws IOException {
+    public List<TransactionData> collectData() throws IOException {
         return consolidator.fetch();
     }
 
     @Override
-    public List<LedgerTransaction> convertToLedger(List<ConsolidatedTransaction> transactions) {
+    public List<LedgerTransaction> convertToLedger(List<TransactionData> transactions) {
         return importer.importTransactions(transactions);
     }
 
