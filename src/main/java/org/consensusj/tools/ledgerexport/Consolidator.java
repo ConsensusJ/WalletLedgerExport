@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
@@ -165,6 +166,7 @@ public class Consolidator {
         return this.getWalletTransaction(txData.txId()).thenAccept(wt ->
                         txData.add(wt.getDetails().stream()
                                 .map(WalletTransactionInfo.Detail::getAddress)
+                                .filter(Objects::nonNull)
                                 .toList()
                         )
                 );

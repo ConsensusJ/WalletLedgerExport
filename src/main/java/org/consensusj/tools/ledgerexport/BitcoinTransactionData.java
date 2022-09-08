@@ -30,8 +30,6 @@ public class BitcoinTransactionData implements TransactionData {
     protected final Instant time;
     protected final Sha256Hash txId;
     protected final List<BitcoinTransactionInfo> infos = new ArrayList<>();
-
-
     private final List<Address> addresses = new ArrayList<>();
 
     public BitcoinTransactionData(BitcoinTransactionInfo bitcoinTransactionInfo) {
