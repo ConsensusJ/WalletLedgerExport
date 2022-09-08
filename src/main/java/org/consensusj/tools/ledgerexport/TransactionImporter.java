@@ -198,9 +198,10 @@ public class TransactionImporter {
     }
 
     private LedgerTransaction fromSentOmni(OmniTransactionData otd) {
-        if ((otd.omniTransactionInfo().getPropertyId() != null && otd.omniTransactionInfo().getPropertyId().ecosystem() == Ecosystem.TOMNI) ||
-                (otd.omniTransactionInfo().getTypeInt() == 25 && CurrencyID.of((Integer) otd.omniTransactionInfo().getOtherInfo().get("propertyiddesired")).ecosystem() == Ecosystem.TOMNI) ||
-                (!otd.omniTransactionInfo().isValid())) {
+        OmniTransactionInfo omniTx = otd.omniTransactionInfo();
+        if ((omniTx.getPropertyId() != null && omniTx.getPropertyId().ecosystem() == Ecosystem.TOMNI) ||
+                (omniTx.getTypeInt() == 25 && CurrencyID.of(((Number) omniTx.getOtherInfo().get("propertyiddesired")).longValue()).ecosystem() == Ecosystem.TOMNI) ||
+                (!omniTx.isValid())) {
             return fromOmniTestEcosystem(otd);
         }
         String account = defaultExpense;
@@ -214,7 +215,6 @@ public class TransactionImporter {
 
         List<LedgerTransaction.Split> splits = new ArrayList<>();
 
-        OmniTransactionInfo omniTx = otd.omniTransactionInfo();
         BigDecimal amount = omniTx.getAmount() != null ? omniTx.getAmount().bigDecimalValue() : BigDecimal.ZERO;
         String currency = calcCurrency(omniTx);
 
@@ -269,15 +269,10 @@ public class TransactionImporter {
                 .orElse(Coin.ZERO)
                 .toBtc();
 
-        List<LedgerTransaction.Split> splits = new ArrayList<>();
-
-        // Wallet account
-        splits.add(new LedgerTransaction.Split(walletAccount, fee, BTC_CODE));
-
-        // Fee
-        if (fee.compareTo(BigDecimal.ZERO) != 0) {
-            splits.add(new LedgerTransaction.Split("Expense:TransactionFees", fee.negate(), OmniCurrencyCode.BTC.toString()));
-        }
+        List<LedgerTransaction.Split> splits = List.of(
+            new LedgerTransaction.Split(walletAccount, fee, BTC_CODE),
+            new LedgerTransaction.Split("Expense:TransactionFees", fee.negate(), BTC_CODE)
+        );
 
         List<String> comments = new ArrayList<>();
         comments.add(commentTxId(otd.txId()));
@@ -285,7 +280,7 @@ public class TransactionImporter {
 
         return new LedgerTransaction(otd.txId(),
                 time,
-                "Omni Testnet Transaction (fees only)",
+                "Invalid or Test Ecosystem Omni Transaction (fees only)",
                 comments,
                 splits);
     }
