@@ -178,7 +178,7 @@ public class TransactionImporter {
         if (isSend) {
             if (fee.compareTo(BigDecimal.ZERO) != 0) {
                 // Deduct fee from BTC assets
-                splits.add(new LedgerTransaction.Split(walletAccount, fee, OmniCurrencyCode.BTC.toString()));
+                splits.add(new LedgerTransaction.Split(walletAccount, fee, BTC_CODE));
                 splits.add(new LedgerTransaction.Split("Expense:TransactionFees",fee.negate(), BTC_CODE));
             }
         }
@@ -241,7 +241,7 @@ public class TransactionImporter {
         // Fee
         if (fee.compareTo(BigDecimal.ZERO) != 0) {
             // Deduct fee from BTC assets
-            splits.add(new LedgerTransaction.Split(walletAccount, fee, OmniCurrencyCode.BTC.toString()));
+            splits.add(new LedgerTransaction.Split(walletAccount, fee, BTC_CODE));
             // Add Fee expense
             splits.add(new LedgerTransaction.Split("Expense:TransactionFees",fee.negate(), BTC_CODE));
         }
@@ -314,7 +314,7 @@ public class TransactionImporter {
         // Fee
         if (isSend) {
             if (fee.compareTo(BigDecimal.ZERO) != 0) {
-                splits.add(new LedgerTransaction.Split("Expense:TransactionFees",fee.negate(), OmniCurrencyCode.BTC.toString()));
+                splits.add(new LedgerTransaction.Split("Expense:TransactionFees",fee.negate(), BTC_CODE));
             }
         }
 
@@ -351,7 +351,7 @@ public class TransactionImporter {
 
         // Fee
         if (fee.compareTo(BigDecimal.ZERO) != 0) {
-            splits.add(new LedgerTransaction.Split("Expense:TransactionFees", fee.negate(), OmniCurrencyCode.BTC.toString()));
+            splits.add(new LedgerTransaction.Split("Expense:TransactionFees", fee.negate(), BTC_CODE));
         }
 
         List<Address> addresses = btd.addresses();
@@ -422,9 +422,9 @@ public class TransactionImporter {
 
     private static String calcCurrency(OmniTransactionInfo omni) {
         if (omni != null) {
-            return omni.getPropertyId() != null ? propertyIdToTicker(omni.getPropertyId()) : OmniCurrencyCode.BTC.toString();
+            return omni.getPropertyId() != null ? propertyIdToTicker(omni.getPropertyId()) : BTC_CODE;
         } else {
-            return OmniCurrencyCode.BTC.toString();
+            return BTC_CODE;
         }
     }
 
