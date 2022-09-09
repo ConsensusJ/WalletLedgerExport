@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -142,6 +143,7 @@ public class OmniExportClient {
     }
 
     // Additional network request to get timestamp for an OmniMatch and return an OmniMatchData
+    // This requires that transaction indexing being enabled, which is a requirement for Omni Core
     private CompletableFuture<OmniMatchData> getMatchTime(OmniMatch match) {
         return client.supplyAsync(() -> client.getRawTransactionInfo(match.match().getTxId()))
                 .thenApply(raw -> new OmniMatchData(Instant.ofEpochSecond(raw.getTime()), match.tradeInfo(), match.match()));
@@ -160,12 +162,9 @@ public class OmniExportClient {
     // Fetch addresses for a given BitcoinTransactionData and add them to the record
     private CompletableFuture<Void> fetchAddressesForTxData(BitcoinTransactionData txData) {
         return this.getTransaction(txData.txId()).thenAccept(wt ->
-                        txData.add(wt.getDetails().stream()
-                                .map(WalletTransactionInfo.Detail::getAddress)
-                                .filter(Objects::nonNull)
-                                .toList()
-                        )
-                );
+                // TODO: Add full bitcoinj Transaction here instead of addresses?? (addresses can be extracted later)
+                txData.add(this.getAddresses(wt))
+        );
     }
 
     // Get a list of all addresses this wallet used to trade on the Omni MetaDEX (Synchronous because no I/O)
@@ -187,6 +186,41 @@ public class OmniExportClient {
     }
 
     private CompletableFuture<WalletTransactionInfo> getTransaction(Sha256Hash txId) {
-        return client.supplyAsync(() -> client.getTransaction(txId, false, true));
+        return client.supplyAsync(() -> client.getTransaction(txId, false, false));
+    }
+
+    // Get all addresses from the "Detail" list
+    private List<Address> getAddresses(WalletTransactionInfo tx) {
+        return tx.getDetails().stream()
+                .map(WalletTransactionInfo.Detail::getAddress)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    // Get a list of (output-only, for now) addresses from a WalletTransactionInfo
+    // This requires the verbose (includes "decoded" property) and also add addresses
+    // for outputs not related to our wallet (e.g. sometimes 40+ addresses on an exchange
+    // withdrawal)
+    private List<Address> getAddresses2(WalletTransactionInfo tx) {
+        List<Address> addresses = new ArrayList<>();
+//        tx.getDetails().forEach(detail -> {
+//            var addr = detail.getAddress();
+//            if (addr != null) {
+//                addresses.add(addr);
+//            }
+//        });
+        var decoded = tx.getDecoded();
+        if (decoded != null) {
+            var vouts = decoded.getVout();
+            if (vouts != null) {
+                decoded.getVout().forEach(vout -> {
+                    var list = vout.getScriptPubKey().getAddresses();
+                    if (list != null) {
+                        addresses.addAll(list);
+                    }
+                });
+            }
+        }
+        return Collections.unmodifiableList(addresses);
     }
 }
