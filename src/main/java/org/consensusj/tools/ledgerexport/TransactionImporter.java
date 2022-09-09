@@ -19,8 +19,10 @@ import foundation.omni.CurrencyID;
 import foundation.omni.Ecosystem;
 import foundation.omni.json.pojo.OmniTransactionInfo;
 import foundation.omni.money.OmniCurrencyCode;
+import foundation.omni.net.OmniNetworkParameters;
 import org.bitcoinj.core.Address;
 import org.bitcoinj.core.Coin;
+import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.Sha256Hash;
 import org.consensusj.bitcoin.json.pojo.BitcoinTransactionInfo;
 import org.slf4j.Logger;
@@ -28,27 +30,20 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 // TODO: Allow various types of configuration in its constructor (e.g. income/expense account mappings, additional hints, etc.)
 // TODO: Simplify static constructors by factoring out common code
-// TODO: Handle Omni Create Token and Omni MetaDex transactions (calculate other fees and funds locked in multisig)
-// TODO: Figure out why BTC balance is off (low) for Sean's wallet (given other TODOs I'd expect the BTC balance to be too high) -- looks like this was not filtering an unconfirmed transaction
-// TODO: Get total fees of Simple Send  (calculate other fees and funds locked in multisig)
-// TODO: Get total fees of Omni TEST ecosystem transactions
 /**
- * Imports transactions from ConsolidatedTransaction to LedgerTransaction format
+ * Imports transactions from TransactionData to LedgerTransaction format
  */
 public class TransactionImporter {
     private static final Logger log = LoggerFactory.getLogger(TransactionImporter.class);
@@ -57,20 +52,26 @@ public class TransactionImporter {
     private static final String defaultIncome = "Income:Misc";
     private static final String defaultExpense = "Expense:Misc";
     private static final Map<String, String> tickerMap = Map.of("OMNI_SPT#57", "SAFEAPP");
+    private final NetworkParameters netParams;
+    private final Address exodusAddr;
+
     private final Map<Address, AddressAccount> addressAccountMap;
 
     /**
      * Construct with empty account mapping list
      */
-    public TransactionImporter() {
-        this.addressAccountMap = new HashMap<>();
+    public TransactionImporter(NetworkParameters netParams) {
+        this(netParams, List.of());
     }
 
     /**
      * Construct with account mapping list
+     * @param netParams bitcoinj network params
      * @param addressAccounts A list of addresses to map to Ledger income accounts
      */
-    public TransactionImporter(List<AddressAccount> addressAccounts) {
+    public TransactionImporter(NetworkParameters netParams, List<AddressAccount> addressAccounts) {
+        this.netParams = netParams;
+        this.exodusAddr = OmniNetworkParameters.fromBitcoinParms(netParams).getExodusAddress();
         this.addressAccountMap = addressAccounts.stream()
                 .collect(Collectors.toMap(AddressAccount::address, Function.identity()));
     }
@@ -204,12 +205,6 @@ public class TransactionImporter {
             return fromOmniTestEcosystem(otd);
         }
         String account = defaultExpense;
-        BigDecimal fee = otd.transactionInfos().stream()
-                .map(BitcoinTransactionInfo::getFee)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(Coin.ZERO)
-                .toBtc();
 
         List<LedgerTransaction.Split> splits = new ArrayList<>();
 
@@ -238,13 +233,9 @@ public class TransactionImporter {
             }
         }
 
-        // Fee
-        if (fee.compareTo(BigDecimal.ZERO) != 0) {
-            // Deduct fee from BTC assets
-            splits.add(new LedgerTransaction.Split(walletAccount, fee, BTC_CODE));
-            // Add Fee expense
-            splits.add(new LedgerTransaction.Split("Expense:TransactionFees",fee.negate(), BTC_CODE));
-        }
+        List<LedgerTransaction.Split> feeSplits = omniFees(otd);
+
+        splits.addAll(feeSplits);
 
         List<String> comments = new ArrayList<>();
         comments.add(commentTxId(otd.txId()));
@@ -259,17 +250,7 @@ public class TransactionImporter {
     }
 
     private LedgerTransaction fromOmniTestEcosystem(OmniTransactionData otd) {
-        BigDecimal fee = otd.transactionInfos().stream()
-                .map(BitcoinTransactionInfo::getFee)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(Coin.ZERO)
-                .toBtc();
-
-        List<LedgerTransaction.Split> splits = List.of(
-            new LedgerTransaction.Split(walletAccount, fee, BTC_CODE),
-            new LedgerTransaction.Split("Expense:TransactionFees", fee.negate(), BTC_CODE)
-        );
+        List<LedgerTransaction.Split> splits = omniFees(otd);
 
         List<String> comments = new ArrayList<>();
         comments.add(commentTxId(otd.txId()));
@@ -280,6 +261,64 @@ public class TransactionImporter {
                 "Invalid or Test Ecosystem Omni Transaction (fees only)",
                 comments,
                 splits);
+    }
+
+    private List<LedgerTransaction.Split> omniFees(OmniTransactionData otd) {
+        var omniTx = otd.omniTransactionInfo();
+
+        // Miner fee
+        var minerFee = otd.transactionInfos().stream()
+                .map(BitcoinTransactionInfo::getFee)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(Coin.ZERO);
+;
+        // Exodus Fee
+        var exodusFee = otd.transactionInfos()
+                .stream()
+                .filter(bti -> exodusAddr.equals(bti.getAddress()))
+                .findFirst()
+                .map(BitcoinTransactionInfo::getAmount)
+                .orElse(Coin.ZERO);
+
+        // Reference Address Dust/Fee
+        var referenceFee = (omniTx.getReferenceAddress() != null)
+                ? otd.transactionInfos()
+                    .stream()
+                    .filter(bti -> omniTx.getReferenceAddress().equals(bti.getAddress()))
+                    .findFirst()
+                    .map(BitcoinTransactionInfo::getAmount)
+                    .orElse(Coin.ZERO)
+                : Coin.ZERO;
+
+        // Class B Multi-sig Dust/Fee
+        // TODO: Make this more robust (don't assume a null address is an Omni Class B multi-sig output)
+        var multiSigFee = otd.transactionInfos()
+                .stream()
+                .filter(bti -> bti.getAddress() == null)
+                .map(BitcoinTransactionInfo::getAmount)
+                .reduce(Coin.ZERO, Coin::add);
+
+        var totalFee = Stream.of(minerFee, exodusFee, referenceFee, multiSigFee)
+                                        .reduce(Coin.ZERO, Coin::add);
+
+        List<LedgerTransaction.Split> splits = new ArrayList<>();
+        if (totalFee.signum() != 0) {
+            splits.add(new LedgerTransaction.Split(walletAccount, totalFee.toBtc(), BTC_CODE));
+        }
+        if (minerFee.signum() != 0) {
+            splits.add(new LedgerTransaction.Split("Expense:TransactionFees", minerFee.negate().toBtc(), BTC_CODE));
+        }
+        if (exodusFee.signum() != 0) {
+            splits.add(new LedgerTransaction.Split("Expense:ExodusFees", exodusFee.negate().toBtc(), BTC_CODE));
+        }
+        if (referenceFee.signum() != 0) {
+            splits.add(new LedgerTransaction.Split("Expense:ReferenceFees", referenceFee.negate().toBtc(), BTC_CODE));
+        }
+        if (multiSigFee.signum() != 0) {
+            splits.add(new LedgerTransaction.Split("Expense:MultiSigFees", multiSigFee.negate().toBtc(), BTC_CODE));
+        }
+        return Collections.unmodifiableList(splits);
     }
 
     private LedgerTransaction fromBitcoin(BitcoinTransactionData btd) {

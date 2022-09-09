@@ -48,7 +48,7 @@ public class OmniLedgerExporter implements AccountingExporter {
         List<AddressAccount> addressAccounts = (accountMapFile != null)
                 ? readAddressAccountCSV(accountMapFile)
                 : Collections.emptyList();
-        importer = new TransactionImporter(addressAccounts);
+        importer = new TransactionImporter(client.getNetParams(), addressAccounts);
     }
 
     @Override
