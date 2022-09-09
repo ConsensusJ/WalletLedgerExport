@@ -95,7 +95,7 @@ public class TransactionImporter {
                 }
                 return fromReceivedOmni(omniData);
             } else {
-                log.warn("Omni Tx {}", omniData.txId());
+                log.debug("Omni Tx {}", omniData.txId());
                 return fromSentOmni(omniData);
             }
         } else if (data instanceof BitcoinTransactionData bitcoinData) {
@@ -217,7 +217,7 @@ public class TransactionImporter {
         String currency = calcCurrency(omniTx);
 
 
-        log.info("Omni Transaction Type: {}", omniTx.getTypeInt());
+        log.debug("Omni Transaction Type: {}", omniTx.getTypeInt());
         switch (omniTx.getTypeInt()) {
             case 0 -> {    // Simple Send
                 // Wallet account
