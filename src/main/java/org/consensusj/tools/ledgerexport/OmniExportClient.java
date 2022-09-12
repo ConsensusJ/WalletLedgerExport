@@ -146,7 +146,7 @@ public class OmniExportClient {
     // This requires that transaction indexing being enabled, which is a requirement for Omni Core
     private CompletableFuture<OmniMatchData> getMatchTime(OmniMatch match) {
         return client.supplyAsync(() -> client.getRawTransactionInfo(match.match().getTxId()))
-                .thenApply(raw -> new OmniMatchData(Instant.ofEpochSecond(raw.getTime()), match.tradeInfo(), match.match()));
+                .thenApply(raw -> new OmniMatchData(raw.getTime(), match.tradeInfo(), match.match()));
     }
     
     private CompletableFuture<List<BitcoinTransactionInfo>> listAllTransactions() {

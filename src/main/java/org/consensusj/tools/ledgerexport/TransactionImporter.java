@@ -29,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -191,7 +190,7 @@ public class TransactionImporter {
         );
 
         return new LedgerTransaction(bitcoin.getTxId(),
-                Instant.ofEpochSecond(bitcoin.getTime()),
+                bitcoin.getTime(),
                 bitcoin.getLabel(),
                 comments,
                 Collections.unmodifiableList(splits));
@@ -200,7 +199,7 @@ public class TransactionImporter {
     private LedgerTransaction fromSentOmni(OmniTransactionData otd) {
         OmniTransactionInfo omniTx = otd.omniTransactionInfo();
         if ((omniTx.getPropertyId() != null && omniTx.getPropertyId().ecosystem() == Ecosystem.TOMNI) ||
-                (omniTx.getTypeInt() == 25 && CurrencyID.of(((Number) omniTx.getOtherInfo().get("propertyiddesired")).longValue()).ecosystem() == Ecosystem.TOMNI) ||
+                (omniTx.getTypeInt() == 25 && omniTx.getPropertyIdDesired().ecosystem() == Ecosystem.TOMNI) ||
                 (!omniTx.isValid())) {
             return fromOmniTestEcosystem(otd);
         }
@@ -368,7 +367,7 @@ public class TransactionImporter {
         comments.addAll(addressStrings);
 
         return new LedgerTransaction(bitcoin.getTxId(),
-                Instant.ofEpochSecond(bitcoin.getTime()),
+                bitcoin.getTime(),
                 bitcoin.getLabel(),
                 comments,
                 Collections.unmodifiableList(splits));
@@ -405,7 +404,7 @@ public class TransactionImporter {
         comments.addAll(addressStrings);
 
         return new LedgerTransaction(bts.get(0).getTxId(),
-                Instant.ofEpochSecond(bts.get(0).getTime()),
+                bts.get(0).getTime(),
                 "Self send (consolidating tx)",
                 comments,
                 splits);

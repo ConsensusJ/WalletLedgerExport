@@ -33,7 +33,7 @@ public class BitcoinTransactionData implements TransactionData {
     private final List<Address> addresses = new ArrayList<>();
 
     public BitcoinTransactionData(BitcoinTransactionInfo bitcoinTransactionInfo) {
-        this.time = Instant.ofEpochSecond(bitcoinTransactionInfo.getTime());
+        this.time = bitcoinTransactionInfo.getTime();
         this.txId = bitcoinTransactionInfo.getTxId();
         infos.add(bitcoinTransactionInfo);
     }
