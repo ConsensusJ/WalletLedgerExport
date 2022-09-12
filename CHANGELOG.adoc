@@ -1,0 +1,15 @@
+= WalletLedgerExport Changes
+:homepage: https://github.com/ConsensusJ/WalletLedgerExport
+
+
+== v0.0.1
+
+Released: 2022-09-12
+
+* Outputs `.ledger` files for a sample MainNet **Omni Core** wallet instance, that when processed by the `ledger` command produce balances that match what the wallet GUI reports.
+
+* Works with released ConsensusJ/OmniJ JARs:
+
+** ConsensusJ 0.6.3
+
+** OmniJ 0.6.1
