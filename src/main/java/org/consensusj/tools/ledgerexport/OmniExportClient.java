@@ -19,6 +19,7 @@ import foundation.omni.Ecosystem;
 import foundation.omni.json.pojo.OmniTradeInfo;
 import foundation.omni.json.pojo.OmniTransactionInfo;
 import foundation.omni.rpc.OmniClient;
+import foundation.omni.tx.Transactions.TransactionType;
 import org.bitcoinj.core.Address;
 import org.bitcoinj.core.Sha256Hash;
 import org.consensusj.bitcoin.json.pojo.BitcoinTransactionInfo;
@@ -170,7 +171,7 @@ public class OmniExportClient {
     // Get a list of all addresses this wallet used to trade on the Omni MetaDEX (Synchronous because no I/O)
     private List<Address> getOmniTradingAddresses(Collection<OmniTransactionInfo> omniTxs) {
         return omniTxs.stream()
-                .filter(ot -> ot.getTypeInt() == 25)
+                .filter(ot -> ot.getTypeInt() == TransactionType.METADEX_TRADE.value())
                 .map(OmniTransactionInfo::getSendingAddress)
                 .distinct()
                 .toList();

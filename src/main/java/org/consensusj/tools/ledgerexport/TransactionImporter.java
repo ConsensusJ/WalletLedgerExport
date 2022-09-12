@@ -198,39 +198,35 @@ public class TransactionImporter {
 
     private LedgerTransaction fromSentOmni(OmniTransactionData otd) {
         OmniTransactionInfo omniTx = otd.omniTransactionInfo();
-        if ((omniTx.getPropertyId() != null && omniTx.getPropertyId().ecosystem() == Ecosystem.TOMNI) ||
-                (omniTx.getTypeInt() == 25 && omniTx.getPropertyIdDesired().ecosystem() == Ecosystem.TOMNI) ||
-                (!omniTx.isValid())) {
+        if (!omniTx.isValid() || isTestEcosystem(omniTx) ) {
             return fromOmniTestEcosystem(otd);
         }
-        String account = defaultExpense;
 
         List<LedgerTransaction.Split> splits = new ArrayList<>();
 
         BigDecimal amount = omniTx.getAmount() != null ? omniTx.getAmount().bigDecimalValue() : BigDecimal.ZERO;
         String currency = calcCurrency(omniTx);
 
-
         log.debug("Omni Transaction Type: {}", omniTx.getTypeInt());
-        switch (omniTx.getTypeInt()) {
-            case 0 -> {    // Simple Send
-                // Wallet account
-                splits.add(new LedgerTransaction.Split(walletAccount, amount.negate(), currency));
-                // Other account
-                splits.add(new LedgerTransaction.Split(account, amount, currency));
+        omniTx.transactionType().ifPresentOrElse(type -> {
+            switch (type) {
+                case SIMPLE_SEND -> {
+                    // Wallet account
+                    splits.add(new LedgerTransaction.Split(walletAccount, amount.negate(), currency));
+                    // Other account
+                    splits.add(new LedgerTransaction.Split(defaultExpense, amount, currency));
+                }
+                case METADEX_TRADE -> log.warn("Metadex Trade");
+                case CREATE_PROPERTY_FIXED -> {
+                    // Add new tokens to Wallet account
+                    splits.add(new LedgerTransaction.Split(walletAccount, amount, currency));
+                    splits.add(new LedgerTransaction.Split("Income:TokenCreation", amount.negate(), currency));
+                }
+                default -> log.warn("Unsupported Transaction Type: {}({})", omniTx.getType(), omniTx.getTypeInt());
             }
-            case 25 -> {    // MetaDex Trade
-                log.warn("Metadex Trade");
-            }
-            case 50 -> {
-                // Add new tokens to Wallet account
-                splits.add(new LedgerTransaction.Split(walletAccount, amount, currency));
-                splits.add(new LedgerTransaction.Split("Income:TokenCreation", amount.negate(), currency));
-            }
-            default -> {
-                log.warn("Unsupported Transaction Type: {}({})", omniTx.getType(), omniTx.getTypeInt());
-            }
-        }
+        },
+            () -> log.warn("Unknown Transaction Type: {}({})", omniTx.getType(), omniTx.getTypeInt())
+        );
 
         List<LedgerTransaction.Split> feeSplits = omniFees(otd);
 
@@ -408,6 +404,13 @@ public class TransactionImporter {
                 "Self send (consolidating tx)",
                 comments,
                 splits);
+    }
+
+    private boolean isTestEcosystem(OmniTransactionInfo tx) {
+        return tx.transactionType().map(type -> switch(type) {
+            case METADEX_TRADE ->  tx.getPropertyIdDesired().ecosystem() == Ecosystem.TOMNI;
+            default -> tx.getPropertyId() != null && tx.getPropertyId().ecosystem() == Ecosystem.TOMNI;
+        }).orElse(false);
     }
 
     private String incomeAccount(Address address) {
