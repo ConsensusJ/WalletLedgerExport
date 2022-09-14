@@ -27,17 +27,16 @@ import org.consensusj.bitcoin.json.pojo.WalletTransactionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
-// TODO: Detect Bitcoin versus Omni Core server and disable Omni-specific queries if not necessary/supported.
 /**
  * Service object for creating lists of {@link TransactionData}
  */
@@ -59,7 +58,10 @@ public class OmniExportClient {
      * @return list of transaction data objects
      */
     public List<TransactionData> fetch() {
-        // Create container
+        // Query if we have an Omni server and don't attempt to retrieve Omni data with Omni-only JSON-RPC methods
+        boolean isOmni = isOmniServer().join();
+
+        // Create a mutable container that holds (potentially) mutable data items
         BitcoinTransactionsContainer container = new BitcoinTransactionsContainer();
 
         // Fetch all wallet transactions and add to container
@@ -69,17 +71,24 @@ public class OmniExportClient {
         // Get list of addresses from wallet Transaction detail and add to each TransactionData
         CompletableFuture<BitcoinTransactionsContainer> addressQueriesComplete = walletFetchComplete.thenCompose(this::fetchWalletAddresses);
 
-        // Get a list of Omni Transactions, add to each one to a TransactionData, and return the complete list
-        CompletableFuture<List<OmniTransactionInfo>> omniTxsFuture = walletFetchComplete.thenCompose(this::fetchWalletOmniTransactions);
+        CompletableFuture<Void> allQueriesComplete;
+        if (isOmni) {
+            // Get a list of Omni Transactions, add to each one to a TransactionData, and return the complete list
+            CompletableFuture<List<OmniTransactionInfo>> omniTxsFuture = walletFetchComplete.thenCompose(this::fetchWalletOmniTransactions);
 
-        // Get a list of matched Omni trades
-        CompletableFuture<List<OmniMatchData>> omniMatchesFuture = omniTxsFuture.thenCompose(this::fetchWalletOmniMatches);
+            // Get a list of matched Omni trades
+            CompletableFuture<List<OmniMatchData>> omniMatchesFuture = omniTxsFuture.thenCompose(this::fetchWalletOmniMatches);
 
-        // Merge the list of matched trades into the container
-        CompletableFuture<Void> matchesMerged = omniMatchesFuture.thenAccept(mList -> mList.forEach(container::add));
+            // Merge the list of matched trades into the container
+            CompletableFuture<Void> matchesMerged = omniMatchesFuture.thenAccept(mList -> mList.forEach(container::add));
 
-        // Wait for the two furthest downstream futures to complete
-        CompletableFuture.allOf(addressQueriesComplete, matchesMerged).join();
+            allQueriesComplete = CompletableFuture.allOf(addressQueriesComplete, matchesMerged);
+        } else {
+            allQueriesComplete = addressQueriesComplete.thenAccept(ignored -> {});
+        }
+
+        // Wait for all "leaf" (leaves in the async chain) futures to complete
+        allQueriesComplete.join();
 
         // Convert the container to a sorted list of TransactionData
         return container.stream().sorted(Comparator.comparing(TransactionData::time)).toList();
@@ -188,6 +197,12 @@ public class OmniExportClient {
 
     private CompletableFuture<WalletTransactionInfo> getTransaction(Sha256Hash txId) {
         return client.supplyAsync(() -> client.getTransaction(txId, false, false));
+    }
+
+    // This will be added to OmniClient in a future release
+    public CompletableFuture<Boolean> isOmniServer() {
+        return client.supplyAsync(client::getNetworkInfo)
+                .thenApply(n -> n.getSubVersion().toLowerCase(Locale.ROOT).contains("omni"));
     }
 
     // Get all addresses from the "Detail" list
