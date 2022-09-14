@@ -19,7 +19,9 @@ import foundation.omni.rpc.OmniClient;
 import org.bitcoinj.params.MainNetParams;
 import org.bitcoinj.params.RegTestParams;
 import org.bitcoinj.params.TestNet3Params;
+import org.consensusj.bitcoin.jsonrpc.RpcConfig;
 import org.consensusj.bitcoin.jsonrpc.RpcURI;
+import org.consensusj.bitcoin.jsonrpc.bitcoind.BitcoinConfFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,14 +51,21 @@ public class WalletAccountingExport {
         File accountMapFile = args.length >= 5 && args[3].equals("-m")
                 ? new File(args[4])
                 :  null;
-        String user = "bitcoinrpc";
-        String password = "pass";
-        OmniClient client = switch (net) {
-            case "mainnet" -> new OmniClient(MainNetParams.get(), RpcURI.getDefaultMainNetURI(), user, password);
-            case "testnet" -> new OmniClient(TestNet3Params.get(), RpcURI.getDefaultTestNetURI(), user, password);
-            case "regtest" -> new OmniClient(RegTestParams.get(), RpcURI.getDefaultRegTestURI(), user, password);
+        String walletName = args.length >= 7 && args[5].equals("-w")
+                ? "wallet/" + args[6]
+                :  "";
+        // Read password from standard bitcoin.conf file
+        RpcConfig passwordConfig = BitcoinConfFile.readDefaultConfig().getRPCConfig();
+        String username = passwordConfig.getUsername();
+        String password = passwordConfig.getPassword();
+        RpcConfig config = switch (net) {
+            case "mainnet" -> new RpcConfig(MainNetParams.get(), RpcURI.getDefaultMainNetURI().resolve(walletName), username, password);
+            case "testnet" -> new RpcConfig(TestNet3Params.get(), RpcURI.getDefaultTestNetURI().resolve(walletName), username, password);
+            case "regtest" -> new RpcConfig(RegTestParams.get(), RpcURI.getDefaultRegTestURI().resolve(walletName), username, password);
             default -> throw new IllegalArgumentException("invalid network");
         };
+        log.info("Connecting to {}", config.getURI());
+        OmniClient client = new OmniClient(config);
 
         AccountingExporter exporter = new OmniLedgerExporter(client, accountMapFile, out);
         
