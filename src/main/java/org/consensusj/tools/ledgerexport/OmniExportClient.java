@@ -27,12 +27,12 @@ import org.consensusj.bitcoin.json.pojo.WalletTransactionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
@@ -54,12 +54,18 @@ public class OmniExportClient {
     }
 
     /**
-     * Return a list of ConsolidatedTransaction sorted by time
+     * Return a list of TransactionData sorted by time
      * @return list of transaction data objects
      */
     public List<TransactionData> fetch() {
         // Query if we have an Omni server and don't attempt to retrieve Omni data with Omni-only JSON-RPC methods
-        boolean isOmni = isOmniServer().join();
+        boolean isOmni;
+        try {
+            isOmni = client.isOmniServer().join();
+        } catch (IOException e) {
+            // TODO: isOmniServer() shouldn't throw exceptions and the throws clause will be removed in next (v0.6.3) OmniJ release
+            throw new RuntimeException(e);
+        }
 
         // Create a mutable container that holds (potentially) mutable data items
         BitcoinTransactionsContainer container = new BitcoinTransactionsContainer();
@@ -197,12 +203,6 @@ public class OmniExportClient {
 
     private CompletableFuture<WalletTransactionInfo> getTransaction(Sha256Hash txId) {
         return client.supplyAsync(() -> client.getTransaction(txId, false, false));
-    }
-
-    // This will be added to OmniClient in a future release
-    public CompletableFuture<Boolean> isOmniServer() {
-        return client.supplyAsync(client::getNetworkInfo)
-                .thenApply(n -> n.getSubVersion().toLowerCase(Locale.ROOT).contains("omni"));
     }
 
     // Get all addresses from the "Detail" list
