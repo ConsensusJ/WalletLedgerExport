@@ -6,6 +6,13 @@
 
 Released: In-progress
 
+* Split into two modules: `ledger-export-lib` and `ledger-export-tool`
+* Only call Omni Core JSON-RPC methods if server is Omni Core
+* Read password from `bitcoin.conf`
+* Command-line argument `-w` for wallet name
+* ConsensusJ 0.6.4
+* OmniJ 0.6.2
+
 == v0.0.1
 
 Released: 2022-09-12
