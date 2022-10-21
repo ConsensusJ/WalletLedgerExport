@@ -1,0 +1,30 @@
+plugins {
+    id 'application'
+}
+
+ext.moduleName = 'org.consensusj.ledgerexport.tool'
+
+application {
+    mainClass = 'org.consensusj.ledgerexport.tool.WalletAccountingExport'
+    applicationName = 'LedgerExport'
+}
+
+dependencies {
+    implementation project(':ledger-export-lib')
+
+    runtimeOnly "org.slf4j:slf4j-jdk14:${slf4jVersion}"
+}
+
+jar {
+    inputs.property("moduleName", moduleName)
+    manifest {
+        attributes 'Implementation-Title': 'Wallet Ledger Export Tool',
+                'Automatic-Module-Name': moduleName,
+                'Implementation-Version': archiveVersion.get(),
+                'Main-Class': application.mainClass
+    }
+}
+
+run {
+    args = [ 'mainnet', '-o', 'omnicore-export.ledger', '-m', '../test-data/addresses_accounts.csv']
+}

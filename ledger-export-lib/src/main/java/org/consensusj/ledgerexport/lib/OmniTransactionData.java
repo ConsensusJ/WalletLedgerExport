@@ -13,16 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.consensusj.tools.ledgerexport;
+package org.consensusj.ledgerexport.lib;
 
 import foundation.omni.json.pojo.OmniTransactionInfo;
-import org.bitcoinj.core.Address;
-import org.bitcoinj.core.Sha256Hash;
 import org.consensusj.bitcoin.json.pojo.BitcoinTransactionInfo;
-
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  *

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.consensusj.tools.ledgerexport;
+package org.consensusj.ledgerexport.lib;
 
 import org.bitcoinj.core.Sha256Hash;
 
@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 /**
  * Representation of a Bitcoin/Omni Transaction for a plain-text accounting app like ledger-cli.
  */
-record LedgerTransaction(Sha256Hash txId,
+public record LedgerTransaction(Sha256Hash txId,
                          Instant time,
                          String description,
                          List<String> comments,

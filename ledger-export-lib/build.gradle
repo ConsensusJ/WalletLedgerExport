@@ -1,0 +1,21 @@
+plugins {
+    id 'java-library'
+}
+
+ext.moduleName = 'org.consensusj.ledgerexport.lib'
+
+dependencies {
+    api "com.msgilligan:cj-btc-jsonrpc:${consensusjVersion}"
+    api "foundation.omni:omnij-jsonrpc:${omnijVersion}"
+    api "foundation.omni:omnij-money:${omnijVersion}"
+}
+
+jar {
+    inputs.property("moduleName", moduleName)
+    manifest {
+        attributes 'Implementation-Title': 'Wallet Ledger Export Library',
+                'Automatic-Module-Name': moduleName,
+                'Implementation-Version': archiveVersion.get()
+    }
+}
+

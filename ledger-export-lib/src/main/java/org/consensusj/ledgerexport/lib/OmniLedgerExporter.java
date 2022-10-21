@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.consensusj.tools.ledgerexport;
+package org.consensusj.ledgerexport.lib;
 
 import foundation.omni.rpc.OmniClient;
 
@@ -25,7 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-// TODO: Extract Bitcoin-only transaction exporting to another (super?) class.
+// TODO: Extract Bitcoin-only transaction exporting to another (super?) class?
 /**
  * Omni Layer aware ledger exporter that uses {@link OmniClient}.
  */

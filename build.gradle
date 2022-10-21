@@ -8,77 +8,52 @@ plugins {
     id 'org.asciidoctor.jvm.convert'    version '3.3.2'
     id 'org.ajoberstar.git-publish'     version '2.1.3'
     id 'com.github.hierynomus.license'  version '0.16.1'  apply false
-    id 'java'
-    id 'groovy'
-    id 'application'
 }
 
-version = ledgerExportVersion
-group = 'org.consensusj'
+allprojects {
+    apply plugin: 'java'
+    apply plugin: 'groovy'
 
-ext.moduleName = 'org.consensusj.tools .ledgerexport'
+    group 'org.consensusj'
+    version ledgerExportVersion
 
-application {
-    mainClass = 'org.consensusj.tools.ledgerexport.WalletAccountingExport'
-    applicationName = 'LedgerExport'
-}
-
-tasks.withType(JavaCompile) {
-    options.release = 17
-}
-
-repositories {
-    mavenCentral()
-    if (useMavenLocal == "true") {
-        mavenLocal()
+    repositories {
+        mavenCentral()
+        if (useMavenLocal == "true") {
+            mavenLocal()
+        }
+        maven { url 'https://gitlab.com/api/v4/projects/8482916/packages/maven' }   // ConsensusJ (RPC client)
+        maven { url 'https://gitlab.com/api/v4/projects/26583853/packages/maven' }  // OmniJ
     }
-    maven { url 'https://gitlab.com/api/v4/projects/8482916/packages/maven' } // ConsensusJ (RPC client)
-    maven { url 'https://gitlab.com/api/v4/projects/26583853/packages/maven' }  // OmniJ
-}
 
-dependencies {
-    implementation "com.msgilligan:cj-btc-jsonrpc:${consensusjVersion}"
-    implementation "foundation.omni:omnij-jsonrpc:${omnijVersion}"
-    implementation "foundation.omni:omnij-money:${omnijVersion}"
+    dependencies {
+        implementation "org.slf4j:slf4j-api:${slf4jVersion}"
 
-    implementation "org.slf4j:slf4j-api:${slf4jVersion}"
-    runtimeOnly "org.slf4j:slf4j-jdk14:${slf4jVersion}"
-
-    testRuntimeOnly "org.slf4j:slf4j-jdk14:${slf4jVersion}"     // Runtime implementation of slf4j for tests
-}
-
-run {
-    args = [ 'mainnet', '-o', 'omnicore-export.ledger', '-m', 'test-data/addresses_accounts.csv']
-}
-
-jar {
-    inputs.property("moduleName", moduleName)
-    manifest {
-        attributes 'Implementation-Title': 'Wallet Ledger Export',
-                'Automatic-Module-Name': moduleName,
-                'Implementation-Version': archiveVersion.get(),
-                'Main-Class': application.mainClass
+        testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
+        testRuntimeOnly "org.slf4j:slf4j-jdk14:${slf4jVersion}"     // Runtime implementation of slf4j for tests
     }
-}
 
-java {
-    withJavadocJar()
-    withSourcesJar()
-}
+    java {
+        withJavadocJar()
+        withSourcesJar()
+    }
 
-compileJava {
-    options.compilerArgs << '-Xlint:deprecation' << '-Xlint:unchecked'
-}
+    tasks.withType(JavaCompile) {
+        options.release = 17
+        options.compilerArgs << '-Xlint:deprecation' << '-Xlint:unchecked'
+    }
 
-tasks.withType(AbstractArchiveTask) {
-    // This should result in reproducible JAR builds
-    // See: https://docs.gradle.org/current/userguide/working_with_files.html#sec:reproducible_archives
-    preserveFileTimestamps = false
-    reproducibleFileOrder = true
-}
+    tasks.withType(AbstractArchiveTask) {
+        // This should result in reproducible JAR builds
+        // See: https://docs.gradle.org/current/userguide/working_with_files.html#sec:reproducible_archives
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
 
-test {
-    useJUnitPlatform()
+    test {
+        useJUnitPlatform()
+    }
 }
 
 apply from: 'gradle/licenseCheck.gradle'

@@ -13,16 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.consensusj.tools.ledgerexport;
-
-import org.bitcoinj.core.Sha256Hash;
-
-import java.time.Instant;
 
 /**
- *
+ * A command-line tool for exporting Bitcoin Core (and Omni Core) wallet transactions for double-entry accounting.
+ * The {@link org.consensusj.ledgerexport.tool.WalletAccountingExport} class provides a command-line tool
+ * that uses the {@link org.consensusj.ledgerexport.lib} to do the export.
  */
-public interface TransactionData {
-    Instant time();
-    Sha256Hash txId();
-}
+package org.consensusj.ledgerexport.tool;
+
+
+

@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.consensusj.ledgerexport.lib;
+
+import org.bitcoinj.core.Address;
 
 /**
- * Provides classes and a tool for exporting Bitcoin Core wallet transactions for double-entry accounting.
- * The {@link org.consensusj.tools.ledgerexport.WalletAccountingExport} class provides a command-line tool
- * that exports double-entry accounting transactions in the <q>plain-text accounting</q> format supported
- * by the <a href="https://www.ledger-cli.org">Ledger</a> accounting system (also known as <q>Ledger CLI</q>.)
+ * Address to Account mapping record (generally read from a CSV file)
  */
-package org.consensusj.tools.ledgerexport;
-
-
-
+public record AddressAccount(String label, Address address, String account) {
+    public AddressAccount(String label, String addressString, String account) {
+        this(label, Address.fromString(null, addressString), account);
+    }
+}

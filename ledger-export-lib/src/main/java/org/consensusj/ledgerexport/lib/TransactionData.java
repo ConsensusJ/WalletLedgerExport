@@ -13,10 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.consensusj.tools.ledgerexport;
+package org.consensusj.ledgerexport.lib;
+
+import org.bitcoinj.core.Sha256Hash;
+
+import java.time.Instant;
 
 /**
  *
  */
-public class OmniTransactionsContainer extends BitcoinTransactionsContainer {
+public interface TransactionData {
+    Instant time();
+    Sha256Hash txId();
 }
