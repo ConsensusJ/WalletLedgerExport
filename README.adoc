@@ -1,0 +1,14 @@
+= WalletLedgerExport
+Sean Gilligan <https://github.com/msgilligan>
+v0.0.2
+:description: WalletLedgerExport README
+:ledgerexport-version: 0.0.2
+
+image:https://github.com/ConsensusJ/WalletLedgerExport/workflows/Gradle%20Build/badge.svg?branch=master["GitHub Actions Gradle Build", link="https://github.com/ConsensusJ/WalletLedgerExport/actions?query=workflow%3A%22Gradle+Build%22"]
+
+
+Command-line tool for exporting Bitcoin Core (and Omni Core) transactions to Ledger CLI format.
+
+== Features
+
+* TBD
