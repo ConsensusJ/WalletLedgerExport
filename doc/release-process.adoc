@@ -1,0 +1,11 @@
+= WalletLedgerExport Release Process
+
+== Main Release Process
+
+== Generate/Update GraalVM Metadata
+
+. `./gradlew -Pagent run`
+. `./gradlew ledger-export-tool:metadataCopy --task run --dir src/main/resources/META-INF/native-image`
+. Commit changes
+
+

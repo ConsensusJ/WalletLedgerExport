@@ -1,5 +1,6 @@
 plugins {
     id 'application'
+    id 'org.graalvm.buildtools.native' version '0.9.16'
 }
 
 ext.moduleName = 'org.consensusj.ledgerexport.tool'
@@ -28,3 +29,19 @@ jar {
 run {
     args = [ 'mainnet', '-o', 'omnicore-export.ledger', '-m', '../test-data/addresses_accounts.csv']
 }
+
+graalvmNative {
+    binaries {
+        main {
+            imageName = applicationName
+            //configurationFileDirectories.from(file('src/main/graal'))
+            buildArgs.addAll('--allow-incomplete-classpath', '-H:EnableURLProtocols=http,https')
+            runtimeArgs.addAll('mainnet', '-o', 'omnicore-export.ledger', '-m', '../test-data/addresses_accounts.csv')
+            javaLauncher = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(17)
+                vendor = JvmVendorSpec.matching("GraalVM Community")
+            }
+        }
+    }
+}
+
