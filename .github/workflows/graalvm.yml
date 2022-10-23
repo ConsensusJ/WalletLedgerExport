@@ -1,0 +1,39 @@
+name: GraalVM Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+        graalvm: [ '22.2.0' ]
+        java: [ 'java17' ]
+      fail-fast: false
+    name: ${{ matrix.os }} JDK ${{ matrix.graalvm }}.${{ matrix.java }}
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+      - name: Set up GraalVM
+        uses: DeLaGuardo/setup-graalvm@4.0
+        with:
+          graalvm: ${{ matrix.graalvm }}
+          java: ${{ matrix.java }}
+      - name: Install native-image plugin
+        run: gu install native-image
+      - name: Verify Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v1
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle
+      - name: Build with Gradle
+        run: ./gradlew build nativeCompile --scan --info --stacktrace
+      - name: Upload LedgerExport tool as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: LedgerExport-${{ matrix.os }}
+          path: ledger-export-tool/build/native/nativeCompile/LedgerExport
