@@ -1,12 +1,15 @@
 plugins {
     id 'application'
     id 'org.graalvm.buildtools.native' version '0.9.16'
+    id 'org.asciidoctor.jvm.convert' version '3.3.2'
 }
 
 ext.moduleName = 'org.consensusj.ledgerexport.tool'
 
+mainClassName = "org.consensusj.ledgerexport.tool.WalletAccountingExport"
+
 application {
-    mainClass = 'org.consensusj.ledgerexport.tool.WalletAccountingExport'
+    mainClass = mainClassName
     applicationName = 'LedgerExport'
 }
 
@@ -47,4 +50,24 @@ graalvmNative {
         }
     }
 }
+
+task generateManpageAsciiDoc(type: JavaExec) {
+    dependsOn(classes)
+    group = "Documentation"
+    description = "Generate AsciiDoc manpage"
+    classpath(sourceSets.main.compileClasspath, configurations.annotationProcessor, sourceSets.main.runtimeClasspath)
+    main 'picocli.codegen.docgen.manpage.ManPageGenerator'
+    args mainClassName, "--outdir=${project.buildDir}/generated-picocli-docs", "-v" //, "--template-dir=src/docs/mantemplates"
+}
+
+asciidoctor {
+    dependsOn(generateManpageAsciiDoc)
+    sourceDir = file("${project.buildDir}/generated-picocli-docs")
+    outputDir = file("${project.buildDir}/docs")
+    logDocuments = true
+    outputOptions {
+        backends = ['manpage', 'html5']
+    }
+}
+
 

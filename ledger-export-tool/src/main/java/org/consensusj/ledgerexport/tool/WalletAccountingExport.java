@@ -37,14 +37,18 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.lang.reflect.Method;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 
 /**
  * Tool to export Bitcoin Core (or Omni Core) wallet transactions to ledger-cli plain-text files.
  */
-public class WalletAccountingExport {
+@Command(name="WalletLedgerExport",
+        description = "Export wallet ledger as double-entry transactions",
+        version = "0.0.2",
+        mixinStandardHelpOptions = true)
+public class WalletAccountingExport implements Callable<Integer> {
     private static final Logger log = LoggerFactory.getLogger(WalletAccountingExport.class);
 
     /**
@@ -52,8 +56,7 @@ public class WalletAccountingExport {
      * @param args command-line arguments
      */
     public static void main(String[] args) {
-        Method export = CommandLine.getCommandMethods(WalletAccountingExport.class, "export").get(0);
-        CommandLine cmd = new CommandLine(export);
+        CommandLine cmd = new CommandLine(new WalletAccountingExport());
         int exitCode = cmd.execute(args);
         System.exit(exitCode);
     }
@@ -81,16 +84,14 @@ public class WalletAccountingExport {
         String filterAccount;
     }
 
+    @Mixin
+    ExportOptions options;
+
     /**
      * Export plaintext double-entry accounting entries to either {@code System.out} or {@link ExportOptions#outputFile}.
-     * @param options command-line options as parsed by pico-cli
      * @throws IOException if problem communicating with the server
      */
-    @Command(name="WalletLedgerExport",
-            description = "Export wallet ledger as double-entry transactions",
-            version = "0.0.2",
-            mixinStandardHelpOptions = true)
-    public void export(@Mixin ExportOptions options) throws IOException {
+    public Integer call() throws IOException {
         final PrintStream out = options.outputFile != null
                 ? new PrintStream(new FileOutputStream(options.outputFile))
                 :  System.out;
@@ -120,5 +121,6 @@ public class WalletAccountingExport {
                 : t -> true;
         List<LedgerTransaction> outputEntries = entries.stream().filter(predicate).toList();
         exporter.output(outputEntries);
+        return 0;
     }
 }
