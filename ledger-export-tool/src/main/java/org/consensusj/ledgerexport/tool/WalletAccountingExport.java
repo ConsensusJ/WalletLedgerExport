@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * Tool to export Omni Core wallet transactions to ledger-cli plain-text files.
+ * Tool to export Bitcoin Core (or Omni Core) wallet transactions to ledger-cli plain-text files.
  */
 public class WalletAccountingExport {
     private static final Logger log = LoggerFactory.getLogger(WalletAccountingExport.class);
@@ -59,6 +59,9 @@ public class WalletAccountingExport {
         System.exit(exitCode);
     }
 
+    /**
+     * Command-line options (parsed by pico-cli)
+     */
     public static class ExportOptions {
         @Option(names = {"-n", "--network"},
                 description = "Network: mainnet, testnet, signet, or regtest (default is \"mainnet\")",
@@ -79,6 +82,11 @@ public class WalletAccountingExport {
         String filterAccount;
     }
 
+    /**
+     * Export plaintext double-entry accounting entries to either {@code System.out} or {@link ExportOptions#outputFile}.
+     * @param options command-line options as parsed by pico-cli
+     * @throws IOException if problem communicating with the server
+     */
     @Command(name="WalletLedgerExport",
             description = "Export wallet ledger as double-entry transactions",
             version = "0.0.2",
