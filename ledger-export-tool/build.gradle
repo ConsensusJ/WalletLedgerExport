@@ -12,6 +12,9 @@ application {
 
 dependencies {
     implementation project(':ledger-export-lib')
+    implementation 'info.picocli:picocli:4.6.3'
+
+    annotationProcessor 'info.picocli:picocli-codegen:4.6.3'
 
     runtimeOnly "org.slf4j:slf4j-jdk14:${slf4jVersion}"
 }
@@ -27,7 +30,7 @@ jar {
 }
 
 run {
-    args = [ 'mainnet', '-o', 'omnicore-export.ledger', '-m', '../test-data/addresses_accounts.csv']
+    args = [ '-n', 'mainnet', '-o', 'omnicore-export.ledger', '-m', '../test-data/addresses_accounts.csv']
 }
 
 graalvmNative {
@@ -36,7 +39,7 @@ graalvmNative {
             imageName = applicationName
             //configurationFileDirectories.from(file('src/main/graal'))
             buildArgs.addAll('--allow-incomplete-classpath', '-H:EnableURLProtocols=http,https')
-            runtimeArgs.addAll('mainnet', '-o', 'omnicore-export.ledger', '-m', '../test-data/addresses_accounts.csv')
+            runtimeArgs.addAll('-n', 'mainnet', '-o', 'omnicore-export.ledger', '-m', '../test-data/addresses_accounts.csv')
             javaLauncher = javaToolchains.launcherFor {
                 languageVersion = JavaLanguageVersion.of(17)
                 vendor = JvmVendorSpec.matching("GraalVM Community")

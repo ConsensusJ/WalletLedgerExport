@@ -28,14 +28,19 @@ import org.consensusj.ledgerexport.lib.OmniLedgerExporter;
 import org.consensusj.ledgerexport.lib.TransactionData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
+import picocli.CommandLine.Option;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.Method;
 import java.util.List;
+import java.util.function.Predicate;
 
-// TODO: Use pico-cli to manage command-line options
 /**
  * Tool to export Omni Core wallet transactions to ledger-cli plain-text files.
  */
@@ -48,43 +53,65 @@ public class WalletAccountingExport {
      * @throws IOException if an error occurred communicating with the server
      */
     public static void main(String[] args) throws IOException {
-        String net = args.length > 0 ? args[0] : "mainnet";
-        PrintStream out = args.length >= 3 && args[1].equals("-o")
-                ? new PrintStream(new FileOutputStream(args[2]))
+        Method export = CommandLine.getCommandMethods(WalletAccountingExport.class, "export").get(0);
+        CommandLine cmd = new CommandLine(export);
+        int exitCode = cmd.execute(args);
+        System.exit(exitCode);
+    }
+
+    public static class ExportOptions {
+        @Option(names = {"-n", "--network"},
+                description = "Network: mainnet, testnet, signet, or regtest (default is \"mainnet\")",
+                defaultValue = "mainnet")
+        String net;
+        @Option(names = {"-o", "--output"},
+                description = "Output file path (default is stdout)")
+        File outputFile;
+        @Option(names = {"-m", "--account-map"},
+                description = "Path to account-mapping CSV file (default is none)")
+        File accountMapFile;
+        @Option(names = {"-w", "--wallet"},
+                description = "Wallet name (default is \"\")",
+                defaultValue = "")
+        String wallet;
+        @Option(names = {"-f", "--account-filter"},
+                description = "Account filter for output, e.g. \"Income:Consulting\" (default is none)")
+        String filterAccount;
+    }
+
+    @Command(name="WalletLedgerExport",
+            description = "Export wallet ledger as double-entry transactions",
+            version = "0.0.2",
+            mixinStandardHelpOptions = true)
+    public void export(@Mixin ExportOptions options) throws IOException {
+        final PrintStream out = options.outputFile != null
+                ? new PrintStream(new FileOutputStream(options.outputFile))
                 :  System.out;
-        File accountMapFile = args.length >= 5 && args[3].equals("-m")
-                ? new File(args[4])
-                :  null;
-        String walletName = args.length >= 7 && args[5].equals("-w")
-                ? "wallet/" + args[6]
-                :  "";
+
         // Read password from standard bitcoin.conf file
         RpcConfig passwordConfig = BitcoinConfFile.readDefaultConfig().getRPCConfig();
         String username = passwordConfig.getUsername();
         String password = passwordConfig.getPassword();
-        RpcConfig config = switch (net) {
-            case "mainnet" -> new RpcConfig(MainNetParams.get(), RpcURI.getDefaultMainNetURI().resolve(walletName), username, password);
-            case "testnet" -> new RpcConfig(TestNet3Params.get(), RpcURI.getDefaultTestNetURI().resolve(walletName), username, password);
-            case "regtest" -> new RpcConfig(RegTestParams.get(), RpcURI.getDefaultRegTestURI().resolve(walletName), username, password);
+        RpcConfig config = switch (options.net) {
+            case "mainnet" -> new RpcConfig(MainNetParams.get(), RpcURI.getDefaultMainNetURI().resolve(options.wallet), username, password);
+            case "testnet" -> new RpcConfig(TestNet3Params.get(), RpcURI.getDefaultTestNetURI().resolve(options.wallet), username, password);
+            case "regtest" -> new RpcConfig(RegTestParams.get(), RpcURI.getDefaultRegTestURI().resolve(options.wallet), username, password);
             default -> throw new IllegalArgumentException("invalid network");
         };
         log.info("Connecting to {}", config.getURI());
         OmniClient client = new OmniClient(config);
 
-        AccountingExporter exporter = new OmniLedgerExporter(client, accountMapFile, out);
-        
+        AccountingExporter exporter = new OmniLedgerExporter(client, options.accountMapFile, out);
+
         exporter.initialize();
         List<TransactionData> transactions = exporter.collectData();
         List<LedgerTransaction> entries = exporter.convertToLedger(transactions);
 
-        // TODO: Add command-line option to enable output-filtering by full/partial account string
-        boolean filter = false;
-        String filterAccount = "Income:Consulting";
-        List<LedgerTransaction> outputEntries = filter
-                                    ? entries.stream()
-                                        .filter(t -> t.matchesAccount(filterAccount))
-                                        .toList()
-                                    : entries;
+        // If options.filterAccount was present, only output entries that match specified account
+        Predicate<LedgerTransaction> predicate = (options.filterAccount != null)
+                ? t -> t.matchesAccount(options.filterAccount)
+                : t -> true;
+        List<LedgerTransaction> outputEntries = entries.stream().filter(predicate).toList();
         exporter.output(outputEntries);
     }
 }
