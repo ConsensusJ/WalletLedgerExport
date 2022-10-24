@@ -12,3 +12,38 @@ Command-line tool for exporting Bitcoin Core (and Omni Core) transactions to Led
 == Features
 
 * TBD
+
+== Building
+
+=== JDK Build
+
+Prerequisite:: JDK 17 or later must be installed.
+
+. Build and test
+.. `./gradlew build`
+. Build the tool and wrapper scripts.
+.. `./gradlew ledger-export-tool:installDist`
+
+To run the tool (via a generated shell script):
+
+. `./ledger-export-tool/build/install/LedgerExport/bin/LedgerExport --help`
+
+=== GraalVM Build
+
+Prerequisite:: GraalVM 22.2.r17 or later must be installed. You must also make sure you have run `gu install native-image`.
+
+. Build and test
+.. `./gradlew build`
+. Build the native command-line tool.
+.. `./gradlew nativeCompile`
+
+To run the natively-compiled binary tool:
+
+. `./ledger-export-tool/build/native/nativeCompile/LedgerExport --help`
+
+
+== Running
+
+You'll need a locally-running (i.e. accessible on localhost) Bitcoin Core (or Omni Core) with JSON-RPC service.  `LedgerExport` will find the username and password in the `bitcoin.conf` file and connect to your running `bitcoind` (or `omnicored`) instance. Use the `--help` command to view the available command-line options.
+
+
