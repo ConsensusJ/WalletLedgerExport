@@ -50,9 +50,8 @@ public class WalletAccountingExport {
     /**
      * Main entry point for command-line tool
      * @param args command-line arguments
-     * @throws IOException if an error occurred communicating with the server
      */
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         Method export = CommandLine.getCommandMethods(WalletAccountingExport.class, "export").get(0);
         CommandLine cmd = new CommandLine(export);
         int exitCode = cmd.execute(args);
