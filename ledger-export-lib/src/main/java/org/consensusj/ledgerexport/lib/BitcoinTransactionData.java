@@ -24,25 +24,41 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
+ * Information accumulator for a single Bitcoin transaction
  */
 public class BitcoinTransactionData implements TransactionData {
+    /** Transaction timestamp */
     protected final Instant time;
+    /** Transaction id/hash */
     protected final Sha256Hash txId;
+    /** info records for the transaction */
     protected final List<BitcoinTransactionInfo> infos = new ArrayList<>();
     private final List<Address> addresses = new ArrayList<>();
 
+    /**
+     * Create an instance
+     * @param bitcoinTransactionInfo first transaction info returned for this transaction id
+     */
     public BitcoinTransactionData(BitcoinTransactionInfo bitcoinTransactionInfo) {
         this.time = bitcoinTransactionInfo.getTime();
         this.txId = bitcoinTransactionInfo.getTxId();
         infos.add(bitcoinTransactionInfo);
     }
 
+    /**
+     * Add an additional "info" for this transaction
+     * @param bitcoinTransactionInfo additional info
+     * @return chainable this
+     */
     public BitcoinTransactionData add(BitcoinTransactionInfo bitcoinTransactionInfo) {
         infos.add(bitcoinTransactionInfo);
         return this;
     }
 
+    /**
+     * Add a "related" address for this transaction
+     * @param addressesToAdd additional address
+     */
     public void add(List<Address> addressesToAdd) {
         addresses.addAll(addressesToAdd);
     }
@@ -57,10 +73,16 @@ public class BitcoinTransactionData implements TransactionData {
         return txId;
     }
 
+    /**
+     * @return all addresses collected (so far) for this transaction
+     */
     public List<Address> addresses() {
         return addresses;
     }
-    
+
+    /**
+     * @return all transaction infos collected (so far) for this transaction
+     */
     public List<BitcoinTransactionInfo> transactionInfos() {
         return infos;
     }

@@ -19,7 +19,6 @@ import org.bitcoinj.core.Sha256Hash;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -34,7 +33,13 @@ public record LedgerTransaction(Sha256Hash txId,
                          List<String> comments,
                          List<Split> splits) {
     private static final DateTimeFormatter DEFAULT_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    
+
+    /**
+     * A "split" to balance this transaction to an account
+     * @param account account to balance against
+     * @param amount amount
+     * @param currency currency type
+     */
     record Split(String account, BigDecimal amount, String currency) {
         public String toLedger() {
             String currencyOutput = currency.contains("#")
@@ -44,10 +49,15 @@ public record LedgerTransaction(Sha256Hash txId,
         }
     }
 
+    @Override
     public String toString() {
         return toLedger();
     }
 
+    /**
+     * Serialize to Ledger-CLI format
+     * @return Multi-line Ledger-CLI entry
+     */
     public String toLedger() {
         var commentLines = comments()
                 .stream()

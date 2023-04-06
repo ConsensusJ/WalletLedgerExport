@@ -21,6 +21,12 @@ import org.bitcoinj.core.Address;
  * Address to Account mapping record (generally read from a CSV file)
  */
 public record AddressAccount(String label, Address address, String account) {
+    /**
+     *
+     * @param label Account label
+     * @param addressString Bitcoin address string
+     * @param account Account name
+     */
     public AddressAccount(String label, String addressString, String account) {
         this(label, Address.fromString(null, addressString), account);
     }

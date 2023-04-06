@@ -15,10 +15,9 @@
  */
 package org.consensusj.ledgerexport.lib;
 
-import org.consensusj.ledgerexport.lib.BitcoinTransactionsContainer;
-
 /**
- *
+ * TBD: Subclass of {@link BitcoinTransactionsContainer} for Omni support.
+ * Currently, Omni support is built-in.
  */
 public class OmniTransactionsContainer extends BitcoinTransactionsContainer {
 }

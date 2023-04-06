@@ -36,6 +36,12 @@ public class OmniLedgerExporter implements AccountingExporter {
     private final OmniExportClient exportClient;
     private TransactionImporter importer;
 
+    /**
+     *
+     * @param client JSON-RPC client instance
+     * @param accountMapFile CSV file to map to account names
+     * @param out A print stream to output transactions to
+     */
     public OmniLedgerExporter(OmniClient client, File accountMapFile, PrintStream out) {
         this.client = client;
         this.accountMapFile = accountMapFile;

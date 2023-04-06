@@ -28,11 +28,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- *
+ * Container that accumulates information for multiple transactions
  */
 public class BitcoinTransactionsContainer {
     Map<Sha256Hash, TransactionData> map = new ConcurrentHashMap<>();
 
+    /**
+     * Add transaction information. Creates a new "transaction data" or adds to
+     * existing.
+     * @param info transaction info
+     */
     public void add(BitcoinTransactionInfo info) {
         map.compute(info.getTxId(),
             (k, existing) -> (existing == null)
@@ -41,28 +46,48 @@ public class BitcoinTransactionsContainer {
         );
     }
 
-
+    /**
+     *
+     * @param txId transaction id
+     * @param addresses related addresses
+     */
     public void add(Sha256Hash txId, List<Address> addresses) {
         OmniTransactionData data = (OmniTransactionData) map.get(txId);
         data.add(addresses);
     }
 
+    /**
+     * @param ot transaction info to add
+     */
     public void add(OmniTransactionInfo ot) {
         OmniTransactionData data = (OmniTransactionData) map.get(ot.getTxId());
         data.add(ot);
     }
 
+    /**
+     * @param omd match data to add
+     */
     public void add(OmniMatchData omd) {
         map.put(omd.txId(), omd);
     }
+
+    /**
+     * @return set of transaction ids in the container
+     */
     public Set<Sha256Hash> keys() {
         return map.keySet();
     }
 
+    /**
+     * @return Collection of {@link TransactionData} objects
+     */
     public Collection<TransactionData> values() {
         return map.values();
     }
 
+    /**
+     * @return A stream of {@link TransactionData} objects
+     */
     public Stream<TransactionData> stream() {
         return map.values().stream();
     }

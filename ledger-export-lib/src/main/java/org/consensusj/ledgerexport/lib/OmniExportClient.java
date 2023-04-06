@@ -100,14 +100,23 @@ public class OmniExportClient {
         return container.stream().sorted(Comparator.comparing(TransactionData::time)).toList();
     }
 
+    /**
+     * Fetch all wallet transactions and add to container
+     * @param container container to add to
+     * @return A future that for convenience returns with the container
+     */
     public CompletableFuture<BitcoinTransactionsContainer> fetchWalletTransactions(BitcoinTransactionsContainer container) {
-        // Fetch all wallet transactions and add to container
         // We have to do this one synchronously, because subsequent queries assume there is a BitcoinTransactionData to add to
         return listAllTransactions()
                 .thenAccept(list -> list.forEach(container::add))
                 .thenApply(v -> container);
     }
 
+    /**
+     * Fetch wallet addresses and add to container
+     * @param container container to add to
+     * @return A future that for convenience returns with the container
+     */
     public CompletableFuture<BitcoinTransactionsContainer> fetchWalletAddresses(BitcoinTransactionsContainer container) {
         CompletableFuture[] addressQueries = container.values().stream()
                 .filter(td -> td instanceof OmniTransactionData)
@@ -117,6 +126,11 @@ public class OmniExportClient {
         return CompletableFuture.allOf(addressQueries).thenApply(v -> container);
     }
 
+    /**
+     * Fetch all wallet <b>Omni</b> transactions and add to container
+     * @param container container to add to
+     * @return A future that for convenience returns with the container
+     */
     public CompletableFuture<List<OmniTransactionInfo>> fetchWalletOmniTransactions(BitcoinTransactionsContainer container) {
         return listAllOmniTransactions()
                 .thenApply(list -> {
@@ -144,7 +158,10 @@ public class OmniExportClient {
                 );
     }
 
-    // An OmniTradeInfo.Match and the containing OmniTradeInfo
+    /**
+     * @param match returned match info
+     * @param tradeInfo returned trade info
+     */
     record OmniMatch(OmniTradeInfo.Match match, OmniTradeInfo tradeInfo) {};
 
     private CompletableFuture<List<OmniMatchData>> fetchWalletOmniMatchesWithTime(List<OmniMatch> matches) {

@@ -19,25 +19,41 @@ import foundation.omni.json.pojo.OmniTransactionInfo;
 import org.consensusj.bitcoin.json.pojo.BitcoinTransactionInfo;
 
 /**
- *
+ * Extension of {@link BitcoinTransactionData} that stores OmniLayer info for the transaction
  */
 public class OmniTransactionData extends BitcoinTransactionData {
     private OmniTransactionInfo omniTransactionInfo;
 
+    /**
+     * @param bitcoinTransactionInfo first transaction info returned for this transaction id
+     */
     public OmniTransactionData(BitcoinTransactionInfo bitcoinTransactionInfo) {
         super(bitcoinTransactionInfo);
     }
 
+    /**
+     * Add an additional "info" for this transaction
+     * @param omniTransactionInfo additional info
+     * @return chainable this
+     */
     public OmniTransactionData add(OmniTransactionInfo omniTransactionInfo) {
         this.omniTransactionInfo = omniTransactionInfo;
         return this;
     }
 
 
+    /**
+     * Check if transaction was an Omni transaction.
+     * <p>If no {@link OmniTransactionInfo} was added, then it isn't.
+     * @return {@code true} if Omni, {@code false} otherwise
+     */
     public boolean isOmni() {
         return omniTransactionInfo != null;
     }
 
+    /**
+     * @return omni Transaction information
+     */
     public OmniTransactionInfo omniTransactionInfo() {
         return omniTransactionInfo;
     }

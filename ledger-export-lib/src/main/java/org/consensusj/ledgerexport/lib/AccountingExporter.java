@@ -32,6 +32,7 @@ import java.util.List;
 public interface AccountingExporter {
     /**
      * This method defines and runs the entire process.
+     * @throws IOException an error occurred communicating with the server
      */
     default void export() throws IOException {
         initialize();
@@ -50,6 +51,7 @@ public interface AccountingExporter {
      * Collects transaction data from various sources. Returns a list of transactions in chronological order.
      * There is one {@link TransactionData} per transaction hash/id/{@link Sha256Hash}.
      * @return a chronologically sorted list of transactions
+     * @throws IOException an error occurred communicating with the server
      */
     List<TransactionData> collectData() throws IOException;
 

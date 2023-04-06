@@ -58,6 +58,7 @@ public class TransactionImporter {
 
     /**
      * Construct with empty account mapping list
+     * @param netParams Network parameters
      */
     public TransactionImporter(NetworkParameters netParams) {
         this(netParams, List.of());

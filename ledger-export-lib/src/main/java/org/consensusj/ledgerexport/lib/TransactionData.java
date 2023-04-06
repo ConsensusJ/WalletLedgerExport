@@ -23,6 +23,13 @@ import java.time.Instant;
  *
  */
 public interface TransactionData {
+    /**
+     * @return Transaction time
+     */
     Instant time();
+
+    /**
+     * @return Transaction ID
+     */
     Sha256Hash txId();
 }

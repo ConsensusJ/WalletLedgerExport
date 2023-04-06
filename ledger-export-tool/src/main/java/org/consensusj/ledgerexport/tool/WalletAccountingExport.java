@@ -89,6 +89,7 @@ public class WalletAccountingExport implements Callable<Integer> {
 
     /**
      * Export plaintext double-entry accounting entries to either {@code System.out} or {@link ExportOptions#outputFile}.
+     * @return status code for {@link System#exit(int)}
      * @throws IOException if problem communicating with the server
      */
     public Integer call() throws IOException {

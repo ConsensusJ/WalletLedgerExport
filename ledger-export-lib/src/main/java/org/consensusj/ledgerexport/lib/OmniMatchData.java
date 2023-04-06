@@ -21,13 +21,18 @@ import org.bitcoinj.core.Sha256Hash;
 import java.time.Instant;
 
 /**
- *
+ * Information on matched DEX trades
  */
 public class OmniMatchData implements TransactionData {
     private final Instant time;
     private final OmniTradeInfo.Match match;
     private final OmniTradeInfo trade;
 
+    /**
+     * @param time timestamp
+     * @param trade trade info
+     * @param match match info
+     */
     public OmniMatchData(Instant time, OmniTradeInfo trade, OmniTradeInfo.Match match) {
         this.time = time;
         this.match = match;
@@ -44,10 +49,16 @@ public class OmniMatchData implements TransactionData {
         return match.getTxId();
     }
 
+    /**
+     * @return match info
+     */
     public OmniTradeInfo.Match match() {
         return match;
     }
 
+    /**
+     * @return trade info
+     */
     public OmniTradeInfo trade() {
         return trade;
     }
