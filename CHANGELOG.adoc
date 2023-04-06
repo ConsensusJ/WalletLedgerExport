@@ -6,12 +6,25 @@
 
 Released: In-progress
 
+=== New Features
+
+* Command-line argument `-w` for wallet name
+* Read JSON-RPC password from `bitcoin.conf`
+
+=== Internal Changes
+
 * Split into two modules: `ledger-export-lib` and `ledger-export-tool`
 * Only call Omni Core JSON-RPC methods if server is Omni Core
-* Read password from `bitcoin.conf`
-* Command-line argument `-w` for wallet name
+
+=== Dependency Updates
+
 * ConsensusJ 0.6.4
 * OmniJ 0.6.2
+* SLF4J 2.0.7
+
+=== Build/Test Updates
+
+* Gradle 7.6.1
 
 == v0.0.1
 
