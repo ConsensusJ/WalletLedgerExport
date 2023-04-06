@@ -15,9 +15,9 @@ application {
 
 dependencies {
     implementation project(':ledger-export-lib')
-    implementation 'info.picocli:picocli:4.6.3'
+    implementation 'info.picocli:picocli:4.7.1'
 
-    annotationProcessor 'info.picocli:picocli-codegen:4.6.3'
+    annotationProcessor 'info.picocli:picocli-codegen:4.7.1'
 
     runtimeOnly "org.slf4j:slf4j-jdk14:${slf4jVersion}"
 }
