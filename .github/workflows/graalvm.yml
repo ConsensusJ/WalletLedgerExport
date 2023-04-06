@@ -31,7 +31,7 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle
       - name: Build with Gradle
-        run: ./gradlew build nativeCompile --scan --info --stacktrace
+        run: ./gradlew build asciidoctor nativeCompile --scan --info --stacktrace
       - name: Upload LedgerExport tool as artifact
         uses: actions/upload-artifact@v3
         with:
