@@ -59,13 +59,7 @@ public class OmniExportClient {
      */
     public List<TransactionData> fetch() {
         // Query if we have an Omni server and don't attempt to retrieve Omni data with Omni-only JSON-RPC methods
-        boolean isOmni;
-        try {
-            isOmni = client.isOmniServer().join();
-        } catch (IOException e) {
-            // TODO: isOmniServer() shouldn't throw exceptions and the throws clause will be removed in next (v0.6.3) OmniJ release
-            throw new RuntimeException(e);
-        }
+        boolean isOmni = client.isOmniServer().join();
 
         // Create a mutable container that holds (potentially) mutable data items
         BitcoinTransactionsContainer container = new BitcoinTransactionsContainer();
