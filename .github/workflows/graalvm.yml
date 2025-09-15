@@ -33,7 +33,7 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build asciidoctor nativeCompile --scan --info --stacktrace
       - name: Upload LedgerExport tool as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LedgerExport-${{ matrix.os }}
           path: ledger-export-tool/build/native/nativeCompile/LedgerExport
