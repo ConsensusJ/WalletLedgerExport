@@ -44,7 +44,7 @@ graalvmNative {
             buildArgs.addAll('--allow-incomplete-classpath', '-H:EnableURLProtocols=http,https')
             runtimeArgs.addAll('-n', 'mainnet', '-o', 'omnicore-export.ledger', '-m', '../test-data/addresses_accounts.csv')
             javaLauncher = javaToolchains.launcherFor {
-                languageVersion = JavaLanguageVersion.of(17)
+                languageVersion = JavaLanguageVersion.of(21)
                 vendor = JvmVendorSpec.matching("GraalVM Community")
             }
         }
