@@ -4,7 +4,7 @@ v0.0.2
 :description: WalletLedgerExport README
 :ledgerexport-version: 0.0.2
 
-image:https://github.com/ConsensusJ/WalletLedgerExport/workflows/Gradle%20Build/badge.svg?branch=master["GitHub Actions Gradle Build", link="https://github.com/ConsensusJ/WalletLedgerExport/actions?query=workflow%3A%22Gradle+Build%22"]
+image:https://github.com/ConsensusJ/WalletLedgerExport/actions/workflows/gradle.yml/badge.svg?branch=master["GitHub Actions Gradle Build", link="https://github.com/ConsensusJ/WalletLedgerExport/actions/workflows/gradle.yml"] image:https://github.com/ConsensusJ/WalletLedgerExport/actions/workflows/graalvm.yml/badge.svg?branch=master["GitHub Actions Gradle Build", link="https://github.com/ConsensusJ/WalletLedgerExport/actions/workflows/graalvm.yml"]
 
 
 Command-line tool for exporting Bitcoin Core (and Omni Core) transactions to Ledger CLI format.
@@ -17,7 +17,7 @@ Command-line tool for exporting Bitcoin Core (and Omni Core) transactions to Led
 
 === JDK Build
 
-Prerequisite:: JDK 17 or later must be installed.
+Prerequisite:: JDK 21 or later must be installed.
 
 . Build and test
 .. `./gradlew build`
@@ -30,7 +30,7 @@ To run the tool (via a generated shell script):
 
 === GraalVM Build
 
-Prerequisite:: GraalVM 22.2.r17 or later must be installed. You must also make sure you have run `gu install native-image`.
+Prerequisite:: GraalVM 21 or later must be installed.
 
 . Build and test
 .. `./gradlew build`
